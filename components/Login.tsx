@@ -6,9 +6,13 @@ const Login: React.FC = () => {
     const handleLogin = async () => {
         try {
             await loginUser();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Login failed", error);
-            alert("Login failed. Check console.");
+            if (error.code === 'auth/unauthorized-domain') {
+                alert("Login Failed: Domain Not Authorized.\n\nSince this is a published app, you must add this website's URL to the Firebase Console:\n\n1. Go to Firebase Console > Authentication > Settings > Authorized Domains.\n2. Add your current domain (e.g., your-app.vercel.app).");
+            } else {
+                alert("Login failed: " + error.message);
+            }
         }
     };
 

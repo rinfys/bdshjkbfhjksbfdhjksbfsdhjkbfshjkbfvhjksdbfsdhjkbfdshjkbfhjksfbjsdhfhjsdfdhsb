@@ -307,6 +307,16 @@ const App: React.FC = () => {
         }
     };
 
+    // --- TOGGLE EDIT MODE ---
+
+    const toggleEditMode = (wantEdit: boolean) => {
+        if (wantEdit && isLocked) {
+            alert(`Gameweek Locked! You cannot edit your team until ${new Date(UNLOCK_ISO).toLocaleString('en-GB')}.`);
+            return;
+        }
+        setIsEditMode(wantEdit);
+    };
+
     // --- TEAM BUILDER & SWAP LOGIC ---
 
     const handleRemovePlayer = (index: number) => {
@@ -599,31 +609,31 @@ const App: React.FC = () => {
 
                                 {/* EDIT / VIEW TOGGLE */}
                                 <div className="w-full flex justify-center z-10">
-                                    {isLocked ? (
-                                        <div className="flex items-center gap-2 px-6 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold uppercase tracking-widest animate-pulse">
-                                            <Lock size={14} /> Locked for Matchweek
-                                        </div>
-                                    ) : (
-                                        <div className={`relative p-1 rounded-xl border flex ${isLight ? 'bg-gray-200 border-gray-300' : 'bg-black/40 border-white/10'}`}>
-                                            {/* Background Slider */}
-                                            <div
-                                                className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg transition-all duration-500 ease-out shadow-lg ${isEditMode ? 'bg-fpl-pink left-[calc(50%)] shadow-fpl-pink/30' : 'bg-fpl-green left-1 shadow-green-500/30'}`}
-                                            ></div>
-
-                                            <button
-                                                onClick={() => setIsEditMode(false)}
-                                                className={`relative z-10 flex items-center gap-2 px-8 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors duration-300 ${!isEditMode ? 'text-[#29002d]' : 'text-gray-500 hover:text-gray-700'}`}
-                                            >
-                                                <Eye size={14} /> View
-                                            </button>
-                                            <button
-                                                onClick={() => setIsEditMode(true)}
-                                                className={`relative z-10 flex items-center gap-2 px-8 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors duration-300 ${isEditMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'}`}
-                                            >
-                                                <Edit2 size={14} /> Edit
-                                            </button>
+                                    {isLocked && (
+                                        <div className="absolute top-2 right-2 z-20 flex items-center gap-1 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-[10px] font-bold uppercase tracking-widest animate-pulse pointer-events-none">
+                                            <Lock size={10} /> Locked
                                         </div>
                                     )}
+
+                                    <div className={`relative p-1 rounded-xl border flex ${isLight ? 'bg-gray-200 border-gray-300' : 'bg-black/40 border-white/10'}`}>
+                                        {/* Background Slider */}
+                                        <div
+                                            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg transition-all duration-500 ease-out shadow-lg ${isEditMode ? 'bg-fpl-pink left-[calc(50%)] shadow-fpl-pink/30' : 'bg-fpl-green left-1 shadow-green-500/30'}`}
+                                        ></div>
+
+                                        <button
+                                            onClick={() => toggleEditMode(false)}
+                                            className={`relative z-10 flex items-center gap-2 px-8 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors duration-300 ${!isEditMode ? 'text-[#29002d]' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            <Eye size={14} /> View
+                                        </button>
+                                        <button
+                                            onClick={() => toggleEditMode(true)}
+                                            className={`relative z-10 flex items-center gap-2 px-8 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors duration-300 ${isEditMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            <Edit2 size={14} /> Edit
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -670,7 +680,7 @@ const App: React.FC = () => {
                                     <h4 className="text-red-400 font-bold text-sm uppercase">Squad Incomplete</h4>
                                     <p className={`text-xs ${isLight ? 'text-red-800' : 'text-red-200/70'}`}>Your team will not score points until you have 8 players selected.</p>
                                 </div>
-                                <button onClick={() => setIsEditMode(true)} className="ml-auto bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase transition">
+                                <button onClick={() => toggleEditMode(true)} className="ml-auto bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase transition">
                                     Fix Now
                                 </button>
                             </div>
