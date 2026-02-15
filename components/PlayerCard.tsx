@@ -18,6 +18,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     if (!player) {
       setAvatarUrl(null);
       return;
@@ -36,14 +37,11 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
         if (data1.data && data1.data.length > 0) {
           const userId = data1.data[0].id;
 
-          // Step 2: Get Thumbnail from User ID
-          // Note: Still using proxy for this part as no API handler was provided for thumbnails
-          const proxy = "https://corsproxy.io/?";
-          const thumbUrl = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=true`;
-          const response2 = await fetch(proxy + encodeURIComponent(thumbUrl));
+          // Step 2: Get Thumbnail from User ID using local API (No CORS proxy needed)
+          const response2 = await fetch(`/api/robloxThumbnails?userIds=${userId}&size=150x150&format=Png&isCircular=true`);
           const data2 = await response2.json();
 
-          if (data2.data && data2.data.length > 0 && data2.data[0].state === 'Completed') {
+          if (isMounted && data2.data && data2.data.length > 0 && data2.data[0].state === 'Completed') {
             setAvatarUrl(data2.data[0].imageUrl);
           }
         }
@@ -53,6 +51,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
     };
 
     fetchRobloxAvatar();
+
+    return () => { isMounted = false; };
   }, [player?.name]);
 
   const getTeamBgColor = (color: string) => {

@@ -1,3 +1,4 @@
+
 export interface Player {
   id: number;
   name: string;
@@ -38,6 +39,7 @@ export interface UserData {
   slots: TeamSlot[];
   isSquadComplete?: boolean; // Validation flag
   formation?: string; // e.g. "1-2-1", "0-4-0"
+  isSubmitted?: boolean;
 }
 
 export interface League {

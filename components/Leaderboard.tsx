@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Player, UserData, TeamSlot } from '../types';
 import { fetchAllUsers } from '../firebase';
-import { Trophy, Medal, User as UserIcon, Calendar, Hash } from 'lucide-react';
+import { Trophy, Medal, User as UserIcon, Calendar, Hash, CheckCircle } from 'lucide-react';
 
 interface LeaderboardProps {
     players: Player[]; // Global market players (live data)
@@ -17,6 +17,7 @@ interface LeaderboardEntry {
     avatar: string;
     gwPoints: number;
     totalPoints: number;
+    isSubmitted: boolean;
 }
 
 const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) => {
@@ -52,12 +53,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                     teamName: user.teamName || 'Unnamed Team',
                     avatar: user.logoUrl || 'https://i.imgur.com/AZYKczg.png',
                     gwPoints: liveGwPoints,
-                    totalPoints: total
+                    totalPoints: total,
+                    isSubmitted: !!user.isSubmitted
                 };
             });
 
+            // Filter for only submitted teams
+            const validEntries = calculatedEntries.filter(e => e.isSubmitted);
+
             // Sort initially by Weekly
-            setEntries(calculatedEntries);
+            setEntries(validEntries);
             setLoading(false);
         };
 
@@ -86,6 +91,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                 </div>
                 <h2 className="text-4xl font-extrabold text-white mb-2 tracking-tight">Global Standings</h2>
                 <p className="text-gray-400 text-base max-w-lg">Check how you stack up against the best managers in the world.</p>
+                <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 bg-black/20 px-3 py-1.5 rounded-full border border-white/5">
+                    <CheckCircle size={12} className="text-fpl-green" /> Only submitted squads are shown
+                </div>
             </div>
 
             {/* Toggle */}
@@ -132,7 +140,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                         ) : sortedEntries.length === 0 ? (
                             <tr>
                                 <td colSpan={3} className="p-12 text-center text-gray-500">
-                                    No managers found.
+                                    No active managers found for this week.<br/>
+                                    <span className="text-xs opacity-50">Make sure to submit your squad to appear here!</span>
                                 </td>
                             </tr>
                         ) : (

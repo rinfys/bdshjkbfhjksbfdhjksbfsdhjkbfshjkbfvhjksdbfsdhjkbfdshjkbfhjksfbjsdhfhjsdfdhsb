@@ -252,7 +252,8 @@ export const saveUserTeam = (userId: string, data: {
     logoUrl?: string,
     settings?: UserSettings,
     isSquadComplete?: boolean,
-    formation?: string
+    formation?: string,
+    isSubmitted?: boolean
 }) => {
     if(!db) return;
     const userRef = ref(db, `${USERS_COLLECTION}/${userId}`);

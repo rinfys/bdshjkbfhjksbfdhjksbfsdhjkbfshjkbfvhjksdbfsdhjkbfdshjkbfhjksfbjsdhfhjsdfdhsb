@@ -12,7 +12,7 @@ import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 
 import { INITIAL_TEAM_SLOTS } from './constants';
-import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, Eye, AlertTriangle, Plus, RefreshCw, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, Eye, AlertTriangle, Plus, RefreshCw, XCircle, CheckCircle, Send } from 'lucide-react';
 import { Player, TeamSlot, UserSettings } from './types';
 import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA } from './firebase';
 import { User } from 'firebase/auth';
@@ -74,6 +74,7 @@ const App: React.FC = () => {
     // State for Team Slots
     const [slots, setSlots] = useState<TeamSlot[]>(INITIAL_TEAM_SLOTS);
     const [isSquadComplete, setIsSquadComplete] = useState(false);
+    const [isSubmitted, setIsSubmitted] = useState(false);
 
     // Modal States
     const [isMarketOpen, setIsMarketOpen] = useState(false);
@@ -135,6 +136,7 @@ const App: React.FC = () => {
                 if (data.teamName) setTeamName(data.teamName);
                 setLogoUrl(data.logoUrl || "");
                 setIsSquadComplete(!!data.isSquadComplete);
+                setIsSubmitted(!!data.isSubmitted);
 
                 // Sync Settings
                 if (data.settings) {
@@ -178,7 +180,8 @@ const App: React.FC = () => {
                     slots: INITIAL_TEAM_SLOTS,
                     logoUrl: "",
                     settings: initialSettings,
-                    isSquadComplete: false
+                    isSquadComplete: false,
+                    isSubmitted: false
                 };
 
                 // Initialize DB for this user
@@ -280,6 +283,15 @@ const App: React.FC = () => {
         setLogoUrl(url); // Optimistic update
         if(user) saveUserTeam(user.uid, { logoUrl: url });
     }
+
+    const handleSubmitSquad = () => {
+        if (!user) return;
+        setIsSubmitted(true);
+        saveUserTeam(user.uid, { isSubmitted: true });
+        setNotification("Squad Submitted! You are now entered in the leaderboard.");
+        setTimeout(() => setNotification(null), 3000);
+        setIsEditMode(false);
+    };
 
     const finishGuide = () => {
         setShowGuide(false);
@@ -535,7 +547,7 @@ const App: React.FC = () => {
             {notification && (
                 <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] animate-in fade-in slide-in-from-top-4">
                     <div className="bg-fpl-pink text-white px-6 py-3 rounded-full shadow-[0_0_20px_rgba(233,0,82,0.4)] flex items-center gap-3 font-bold border border-white/20">
-                        <XCircle size={20} />
+                        {notification.includes("Submitted") ? <CheckCircle size={20} /> : <XCircle size={20} />}
                         {notification}
                     </div>
                 </div>
@@ -601,6 +613,11 @@ const App: React.FC = () => {
                                         <div className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border transition-colors duration-500 ${isEditMode ? 'bg-fpl-pink/10 text-fpl-pink border-fpl-pink/20' : 'bg-fpl-green/10 text-fpl-green border-fpl-green/20'}`}>
                                             Manager: {settings.username}
                                         </div>
+                                        {isSubmitted && (
+                                            <div className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border bg-blue-500/10 text-blue-400 border-blue-500/20 flex items-center gap-1">
+                                                <CheckCircle size={10} /> Submitted
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -650,8 +667,8 @@ const App: React.FC = () => {
                                     <button onClick={nextGw} disabled className={`p-3 cursor-not-allowed rounded-xl transition ${isLight ? 'text-gray-300 hover:bg-gray-100' : 'text-white/20 hover:bg-white/5'}`}><ChevronRight size={24}/></button>
                                 </div>
 
-                                {/* EDIT / VIEW TOGGLE */}
-                                <div className="w-full flex justify-center z-10">
+                                {/* EDIT / VIEW TOGGLE & SUBMIT */}
+                                <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-3 z-10">
                                     {isLocked && (
                                         <div className="absolute top-2 right-2 z-20 flex items-center gap-1 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-[10px] font-bold uppercase tracking-widest animate-pulse pointer-events-none">
                                             <Lock size={10} /> Locked
@@ -677,6 +694,15 @@ const App: React.FC = () => {
                                             <Edit2 size={14} /> Edit
                                         </button>
                                     </div>
+
+                                    {!isSubmitted && isSquadComplete && (
+                                        <button
+                                            onClick={handleSubmitSquad}
+                                            className="px-6 py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 flex items-center gap-2 transition-all animate-pulse"
+                                        >
+                                            <Send size={14} /> Submit Squad
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
