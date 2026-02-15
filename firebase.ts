@@ -2,7 +2,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase, ref, set, remove, onValue, update, get } from "firebase/database";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
 import type { Player, TeamSlot, UserSettings, UserData } from "./types";
-import { MARKET_PLAYERS, INITIAL_TEAM_SLOTS } from "./constants";
+import { SEED_PLAYERS } from "./constants";
 
 const firebaseConfig = {
     apiKey: "AIzaSyD5I-udG4s1pRRdFWLun6ThC3h9xLlattQ",
@@ -105,7 +105,7 @@ export const checkUsernameTaken = async (username: string): Promise<boolean> => 
 export const subscribeToPlayers = (callback: (players: Player[]) => void) => {
     if (!isFirebaseAvailable || !db) {
         console.warn("Firebase not available during subscribe, returning mock data.");
-        setTimeout(() => callback(MARKET_PLAYERS), 0);
+        setTimeout(() => callback(SEED_PLAYERS), 0);
         return () => {};
     }
 
@@ -115,7 +115,10 @@ export const subscribeToPlayers = (callback: (players: Player[]) => void) => {
         playersRef,
         (snapshot) => {
             const data = snapshot.val();
-            if (!data) return callback(MARKET_PLAYERS);
+            if (!data) {
+                // Return empty array so consumer can decide to seed
+                return callback([]);
+            }
 
             const list: Player[] = Object.entries<any>(data).map(([key, value]) => {
                 const fromKey =
@@ -134,13 +137,9 @@ export const subscribeToPlayers = (callback: (players: Player[]) => void) => {
             callback(list);
         },
         (error) => {
-            // Quietly fallback to local data on permission or connection error
-            if (!error.message.includes("permission_denied")) {
-                console.error("Database Read Error:", error);
-            } else {
-                console.warn("Using local player data due to permissions.");
-            }
-            callback(MARKET_PLAYERS);
+            console.error("Database Read Error:", error);
+            // On error, we fallback to seed, but note that it's an error state
+            callback(SEED_PLAYERS);
         }
     );
 };

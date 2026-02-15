@@ -12,13 +12,10 @@ const LOGOS = {
   default: "https://i.imgur.com/AZYKczg.png"
 };
 
-// BALANCED PRICING (REDUCED):
-// Top Stars: 16.0 - 19.0
-// High Tier: 11.0 - 14.5
-// Mid Tier: 7.5 - 10.0
-// Budget/Bench: 4.0 - 6.5
-
-export const MARKET_PLAYERS: Player[] = [
+// --- INITIAL DATABASE SEED DATA ---
+// This data is ONLY used to populate the Firebase Realtime Database if it is empty.
+// Once seeded, the app reads from Firebase, not this file.
+export const SEED_PLAYERS: Player[] = [
   // AQUAPOLIS WC (Sky)
   { id: 1, name: "LostEzyxn", teamColor: "sky", position: "RW", price: 16.8, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
   { id: 19, name: "zvafkez", teamColor: "sky", position: "HS", price: 12.3, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },

@@ -11,7 +11,7 @@ import About from './components/About';
 import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 
-import { INITIAL_TEAM_SLOTS, MARKET_PLAYERS } from './constants';
+import { INITIAL_TEAM_SLOTS, SEED_PLAYERS } from './constants';
 import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, Eye, AlertTriangle, Plus, RefreshCw } from 'lucide-react';
 import { Player, TeamSlot, UserSettings } from './types';
 import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam } from './firebase';
@@ -67,8 +67,8 @@ const App: React.FC = () => {
     const [showGuide, setShowGuide] = useState(false);
 
     // Players from Database (Market)
-    // Initialize with MARKET_PLAYERS to ensure data exists immediately
-    const [dbPlayers, setDbPlayers] = useState<Player[]>(MARKET_PLAYERS);
+    // Initialize with EMPTY array to ensure we are waiting for DB connection
+    const [dbPlayers, setDbPlayers] = useState<Player[]>([]);
 
     // State for Team Slots
     const [slots, setSlots] = useState<TeamSlot[]>(INITIAL_TEAM_SLOTS);
@@ -188,15 +188,19 @@ const App: React.FC = () => {
 
         const unsubscribeMarket = subscribeToPlayers((fetchedPlayers) => {
             if (!fetchedPlayers || fetchedPlayers.length === 0) {
-                // If DB is empty, seed it AND use local constants immediately
-                seedDatabase(MARKET_PLAYERS, true);
-                setDbPlayers(MARKET_PLAYERS);
+                // If DB is empty, automatically seed it with our constants
+                console.log("Database empty. Seeding from constants...");
+                seedDatabase(SEED_PLAYERS, true);
+
+                // Optimistically set local state so user doesn't see empty list while uploading
+                setDbPlayers(SEED_PLAYERS);
             } else {
+                // If we have data, use the Database data!
                 setDbPlayers(fetchedPlayers);
             }
 
             // LIVE UPDATE Slots based on new data (whether from DB or constant fallback)
-            const sourceData = (fetchedPlayers && fetchedPlayers.length > 0) ? fetchedPlayers : MARKET_PLAYERS;
+            const sourceData = (fetchedPlayers && fetchedPlayers.length > 0) ? fetchedPlayers : SEED_PLAYERS;
 
             setSlots(currentSlots => {
                 const newSlots = currentSlots.map(slot => {
@@ -725,7 +729,7 @@ const App: React.FC = () => {
             <MarketModal
                 isOpen={isMarketOpen}
                 onClose={() => setIsMarketOpen(false)}
-                players={dbPlayers.length > 0 ? dbPlayers : MARKET_PLAYERS}
+                players={dbPlayers.length > 0 ? dbPlayers : SEED_PLAYERS}
                 positionFilter={getMarketFilter(marketSlotIndex)}
                 onSelect={handlePlayerSelect}
                 currentBudget={remainingBudget}
