@@ -205,7 +205,8 @@ const App: React.FC = () => {
             if (!fetchedPlayers || fetchedPlayers.length === 0) {
                 // If DB is empty, automatically seed it with our seed data from firebase.ts
                 console.log("Database empty. Seeding...");
-                seedDatabase(INITIAL_DB_DATA, true);
+                // CHANGE: Make silent false so we see errors in console/alert if writes fail
+                seedDatabase(INITIAL_DB_DATA, false);
 
                 // Optimistically set local state so user doesn't see empty list while uploading
                 setDbPlayers(INITIAL_DB_DATA);

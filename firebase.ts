@@ -21,9 +21,9 @@ let auth: ReturnType<typeof getAuth> | null = null;
 let isFirebaseAvailable = false;
 
 // Versioned collection to allow "wiping" accounts by changing this string
-const USERS_COLLECTION = 'users_v2';
-// Versioned collection for players to ensure fresh seed on constant update
-const PLAYERS_COLLECTION = 'players_v6';
+// UPDATED: Nested under 'rwafantasy' root as requested
+const USERS_COLLECTION = 'rwafantasy/users';
+const PLAYERS_COLLECTION = 'rwafantasy/players';
 
 // --- INITIAL DATABASE SEED DATA ---
 // This serves as the "Master List" only for initializing the DB.
@@ -175,13 +175,10 @@ export const checkUsernameTaken = async (username: string): Promise<boolean> => 
         }
         return false;
     } catch (e: any) {
-        // Suppress permission denied errors and assume username is available
-        // to allow users to proceed in demo/restricted environments
-        if (e.message && e.message.includes("Permission denied")) {
-            console.warn("Firebase permission denied. Proceeding with local validation.");
-            return false;
-        }
-        console.error("Error checking username:", e);
+        // PERMISSION ERROR HANDLING
+        // We do NOT suppress this anymore to ensure developer sees why DB is empty if rules are strict.
+        console.error("Error checking username (possibly permission denied):", e);
+        // We assume false to not block UI, but the save will likely fail too if permissions are off.
         return false;
     }
 }
@@ -222,7 +219,7 @@ export const subscribeToPlayers = (callback: (players: Player[]) => void) => {
             callback(list);
         },
         (error) => {
-            console.error("Database Read Error:", error);
+            console.error("Database Read Error (Players):", error);
             // On error, we fallback to seed, but note that it's an error state
             callback(INITIAL_DB_DATA);
         }
@@ -241,9 +238,7 @@ export const subscribeToUserTeam = (userId: string, callback: (data: any) => voi
         const val = snapshot.val();
         callback(val);
     }, (error) => {
-        if (!error.message.includes("permission_denied")) {
-            console.error("User Sync Error:", error);
-        }
+        console.error("User Sync Error:", error);
         callback(null);
     });
 }
@@ -259,13 +254,13 @@ export const saveUserTeam = (userId: string, data: {
 }) => {
     if(!db) return;
     const userRef = ref(db, `${USERS_COLLECTION}/${userId}`);
-    update(userRef, data).catch(err => {
-        if (err.message && err.message.includes("Permission denied")) {
-            // Suppress alert for better UX in demo mode
-            console.warn("Save failed: Permission denied. Data will persist locally in session.");
-        } else {
-            console.error("Save failed", err);
-        }
+
+    // Explicitly return the promise so we can debug it
+    return update(userRef, data).then(() => {
+        console.log(`✅ Data saved successfully for user ${userId}`);
+    }).catch(err => {
+        console.error("❌ Save failed (Check Firebase Rules):", err);
+        alert("Database Save Failed! Check console for permission errors.");
     });
 }
 
@@ -281,9 +276,7 @@ export const fetchAllUsers = async (): Promise<UserData[]> => {
             ...usersObj[uid]
         }));
     } catch (e: any) {
-        if (!e.message?.includes("Permission denied")) {
-            console.error("Error fetching leaderboard:", e);
-        }
+        console.error("Error fetching leaderboard:", e);
         return [];
     }
 };
@@ -295,7 +288,12 @@ export const updatePlayerInDb = (player: Player) => {
         alert("Firebase not connected. Check console.");
         return Promise.reject(new Error("Firebase not connected"));
     }
-    return set(ref(db, playerPath(player.id)), player);
+    return set(ref(db, playerPath(player.id)), player)
+        .then(() => console.log("Player updated in DB"))
+        .catch(err => {
+            console.error("Player Update Failed:", err);
+            alert("Failed to update player. Check permissions.");
+        });
 };
 
 export const addPlayerToDb = (player: Player) => updatePlayerInDb(player);
@@ -304,7 +302,8 @@ export const deletePlayerFromDb = (id: number) => {
     if (!isFirebaseAvailable || !db) {
         return Promise.reject(new Error("Firebase not connected"));
     }
-    return remove(ref(db, playerPath(id)));
+    return remove(ref(db, playerPath(id)))
+        .catch(err => console.error("Delete failed:", err));
 };
 
 export const seedDatabase = async (initialPlayers: Player[], silent = false) => {
@@ -313,14 +312,15 @@ export const seedDatabase = async (initialPlayers: Player[], silent = false) => 
         return;
     }
 
-    // Try to seed, catch permissions error
+    console.log("Attempting to seed database...");
+
     try {
         await Promise.all(initialPlayers.map((p) => addPlayerToDb(p)));
+        console.log("✅ Database seeded successfully!");
         if (!silent) alert("Database seeded successfully!");
     } catch (e: any) {
-        if (!silent && !e.message?.includes("Permission denied")) {
-            alert("Seeding failed: " + e.message);
-        }
+        console.error("❌ Seeding failed:", e);
+        if (!silent) alert("Seeding failed: " + e.message);
     }
 };
 
