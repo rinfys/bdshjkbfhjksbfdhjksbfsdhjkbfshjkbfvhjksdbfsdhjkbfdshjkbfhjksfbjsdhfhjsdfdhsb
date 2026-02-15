@@ -25,18 +25,20 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
 
     const fetchRobloxAvatar = async () => {
       try {
-        const proxy = "https://corsproxy.io/?";
-        const targetUrl = "https://users.roblox.com/v1/usernames/users";
-
-        const response1 = await fetch(proxy + encodeURIComponent(targetUrl), {
+        // Step 1: Get User ID from Username using local API
+        const response1 = await fetch("/api/robloxUsernames", {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ usernames: [player.name], excludeBannedUsers: true })
         });
 
         const data1 = await response1.json();
         if (data1.data && data1.data.length > 0) {
           const userId = data1.data[0].id;
+
+          // Step 2: Get Thumbnail from User ID
+          // Note: Still using proxy for this part as no API handler was provided for thumbnails
+          const proxy = "https://corsproxy.io/?";
           const thumbUrl = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=true`;
           const response2 = await fetch(proxy + encodeURIComponent(thumbUrl));
           const data2 = await response2.json();
