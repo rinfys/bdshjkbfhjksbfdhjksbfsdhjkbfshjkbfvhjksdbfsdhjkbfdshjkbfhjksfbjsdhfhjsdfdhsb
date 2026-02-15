@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { X, Save, Trash2, Plus, Database, AlertCircle } from 'lucide-react';
-import { updatePlayerInDb, addPlayerToDb, deletePlayerFromDb, seedDatabase } from '../firebase';
-import { SEED_PLAYERS } from '../constants';
+import { updatePlayerInDb, addPlayerToDb, deletePlayerFromDb, seedDatabase, INITIAL_DB_DATA } from '../firebase';
 
 interface AdminModalProps {
     isOpen: boolean;
@@ -60,7 +59,7 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
 
     const handleSeed = () => {
         if (confirm('This will overwrite existing data with the default list. Continue?')) {
-            seedDatabase(SEED_PLAYERS);
+            seedDatabase(INITIAL_DB_DATA);
         }
     };
 

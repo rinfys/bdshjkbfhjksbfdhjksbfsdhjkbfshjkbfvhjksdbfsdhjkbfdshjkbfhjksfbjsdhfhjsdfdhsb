@@ -11,10 +11,10 @@ import About from './components/About';
 import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 
-import { INITIAL_TEAM_SLOTS, SEED_PLAYERS } from './constants';
-import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, Eye, AlertTriangle, Plus, RefreshCw } from 'lucide-react';
+import { INITIAL_TEAM_SLOTS } from './constants';
+import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, Eye, AlertTriangle, Plus, RefreshCw, XCircle } from 'lucide-react';
 import { Player, TeamSlot, UserSettings } from './types';
-import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam } from './firebase';
+import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA } from './firebase';
 import { User } from 'firebase/auth';
 
 const MAX_BUDGET = 100.0;
@@ -65,6 +65,7 @@ const App: React.FC = () => {
     const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
     const [isUsernameSetup, setIsUsernameSetup] = useState(false);
     const [showGuide, setShowGuide] = useState(false);
+    const [notification, setNotification] = useState<string | null>(null);
 
     // Players from Database (Market)
     // Initialize with EMPTY array to ensure we are waiting for DB connection
@@ -130,26 +131,33 @@ const App: React.FC = () => {
             clearTimeout(dataTimer);
 
             if (data) {
+                // Populate Team Data
                 if (data.teamName) setTeamName(data.teamName);
                 setLogoUrl(data.logoUrl || "");
                 setIsSquadComplete(!!data.isSquadComplete);
 
                 // Sync Settings
                 if (data.settings) {
-                    setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
-                    if (!data.settings.username || !data.settings.usernameLastChanged) {
+                    // Merge DB settings with defaults to ensure all keys exist
+                    const mergedSettings = { ...DEFAULT_SETTINGS, ...data.settings };
+                    setSettings(mergedSettings);
+
+                    // CHECK: Do we have a username?
+                    // We only require the username string to be present to skip setup.
+                    // We do NOT strictly check usernameLastChanged here to avoid looping legacy users.
+                    if (!mergedSettings.username || mergedSettings.username.trim() === '') {
                         setIsUsernameSetup(true);
                     } else {
                         setIsUsernameSetup(false);
                         // Trigger guide if not completed
-                        if (!data.settings.tutorialCompleted) {
+                        if (!mergedSettings.tutorialCompleted) {
                             setTimeout(() => setShowGuide(true), 500);
                         }
                     }
                 } else {
+                    // No settings found (migration or first time weirdness), force setup
                     const newSettings = { ...DEFAULT_SETTINGS, username: '' };
                     setSettings(newSettings);
-                    saveUserTeam(user.uid, { settings: newSettings });
                     setIsUsernameSetup(true);
                 }
 
@@ -157,19 +165,26 @@ const App: React.FC = () => {
                 if (data.slots && Array.isArray(data.slots)) {
                     const mergedSlots = INITIAL_TEAM_SLOTS.map((defaultSlot, idx) => {
                         const savedSlot = data.slots[idx];
+                        // Ensure we keep the structure but take the saved player
                         return savedSlot ? { ...defaultSlot, ...savedSlot } : defaultSlot;
                     });
                     setSlots(mergedSlots);
                 }
             } else {
+                // NEW USER: Initialize DB
                 const initialSettings = { ...DEFAULT_SETTINGS, username: '' };
-                saveUserTeam(user.uid, {
+                const initialData = {
                     teamName: "My Team",
                     slots: INITIAL_TEAM_SLOTS,
                     logoUrl: "",
                     settings: initialSettings,
                     isSquadComplete: false
-                });
+                };
+
+                // Initialize DB for this user
+                saveUserTeam(user.uid, initialData);
+
+                // Set Local State
                 setSettings(initialSettings);
                 setIsUsernameSetup(true);
             }
@@ -188,19 +203,20 @@ const App: React.FC = () => {
 
         const unsubscribeMarket = subscribeToPlayers((fetchedPlayers) => {
             if (!fetchedPlayers || fetchedPlayers.length === 0) {
-                // If DB is empty, automatically seed it with our constants
-                console.log("Database empty. Seeding from constants...");
-                seedDatabase(SEED_PLAYERS, true);
+                // If DB is empty, automatically seed it with our seed data from firebase.ts
+                console.log("Database empty. Seeding...");
+                seedDatabase(INITIAL_DB_DATA, true);
 
                 // Optimistically set local state so user doesn't see empty list while uploading
-                setDbPlayers(SEED_PLAYERS);
+                setDbPlayers(INITIAL_DB_DATA);
             } else {
                 // If we have data, use the Database data!
                 setDbPlayers(fetchedPlayers);
             }
 
             // LIVE UPDATE Slots based on new data (whether from DB or constant fallback)
-            const sourceData = (fetchedPlayers && fetchedPlayers.length > 0) ? fetchedPlayers : SEED_PLAYERS;
+            // This ensures if a player's points/price update in DB, the team slot updates immediately
+            const sourceData = (fetchedPlayers && fetchedPlayers.length > 0) ? fetchedPlayers : INITIAL_DB_DATA;
 
             setSlots(currentSlots => {
                 const newSlots = currentSlots.map(slot => {
@@ -246,6 +262,7 @@ const App: React.FC = () => {
         setSlots(newSlots);
 
         if(user) {
+            // Persist to Firebase
             saveUserTeam(user.uid, {
                 slots: newSlots,
                 isSquadComplete: complete
@@ -254,20 +271,23 @@ const App: React.FC = () => {
     };
 
     const persistName = (name: string) => {
+        setTeamName(name); // Optimistic update
         if(user) saveUserTeam(user.uid, { teamName: name });
-        setTeamName(name);
     };
 
     const persistLogo = (url: string) => {
+        setLogoUrl(url); // Optimistic update
         if(user) saveUserTeam(user.uid, { logoUrl: url });
-        setLogoUrl(url);
     }
 
     const finishGuide = () => {
         setShowGuide(false);
-        setSettings(prev => ({...prev, tutorialCompleted: true}));
+
+        const updatedSettings = { ...settings, tutorialCompleted: true };
+        setSettings(updatedSettings);
+
         if(user) {
-            saveUserTeam(user.uid, { settings: {...settings, tutorialCompleted: true} });
+            saveUserTeam(user.uid, { settings: updatedSettings });
         }
 
         // Enable edit mode and scroll to pitch
@@ -315,7 +335,9 @@ const App: React.FC = () => {
 
     const toggleEditMode = (wantEdit: boolean) => {
         if (wantEdit && isLocked) {
-            alert(`Gameweek Locked! You cannot edit your team until ${new Date(UNLOCK_ISO).toLocaleString('en-GB')}.`);
+            setNotification(`Deadline Passed! Transfers are locked until ${new Date(UNLOCK_ISO).toLocaleDateString('en-GB')}.`);
+            // Auto hide notification
+            setTimeout(() => setNotification(null), 4000);
             return;
         }
         setIsEditMode(wantEdit);
@@ -362,12 +384,14 @@ const App: React.FC = () => {
 
                 // Check Swap Validity
                 if (isGKSlot(index) && player1 && !isGKPlayer(player1)) {
-                    alert("Only Goalkeepers can play in GK slots.");
+                    setNotification("Only Goalkeepers can play in GK slots.");
+                    setTimeout(() => setNotification(null), 3000);
                     setSelectedSlotIndex(null);
                     return;
                 }
                 if (isGKSlot(selectedSlotIndex) && player2 && !isGKPlayer(player2)) {
-                    alert("Only Goalkeepers can play in GK slots.");
+                    setNotification("Only Goalkeepers can play in GK slots.");
+                    setTimeout(() => setNotification(null), 3000);
                     setSelectedSlotIndex(null);
                     return;
                 }
@@ -399,7 +423,8 @@ const App: React.FC = () => {
         // Basic duplicate check
         const existingSlotIndex = slots.findIndex(s => s.player?.id === player.id);
         if (existingSlotIndex !== -1 && existingSlotIndex !== marketSlotIndex) {
-            alert("This player is already in your squad!");
+            setNotification("This player is already in your squad!");
+            setTimeout(() => setNotification(null), 3000);
             return;
         }
 
@@ -477,13 +502,16 @@ const App: React.FC = () => {
             <UsernameSetup
                 user={user}
                 onComplete={(newUsername) => {
-                    setSettings(prev => ({
-                        ...prev,
+                    const newSettings = {
+                        ...settings,
                         username: newUsername,
                         nickname: newUsername,
                         usernameLastChanged: Date.now()
-                    }));
+                    };
+                    setSettings(newSettings);
                     setIsUsernameSetup(false);
+                    // Ensure the DB is updated with this completion
+                    saveUserTeam(user.uid, { settings: newSettings });
                     setShowGuide(true);
                 }}
                 initialSettings={settings}
@@ -501,6 +529,16 @@ const App: React.FC = () => {
                 logoUrl={logoUrl}
                 onStepChange={handleGuideStepChange}
             />
+
+            {/* Notification Toast */}
+            {notification && (
+                <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] animate-in fade-in slide-in-from-top-4">
+                    <div className="bg-fpl-pink text-white px-6 py-3 rounded-full shadow-[0_0_20px_rgba(233,0,82,0.4)] flex items-center gap-3 font-bold border border-white/20">
+                        <XCircle size={20} />
+                        {notification}
+                    </div>
+                </div>
+            )}
 
             {/* Ambient Background Glow (Reduced opacity in light mode) */}
             <div className="fixed top-0 left-0 w-full h-screen pointer-events-none overflow-hidden z-0">
@@ -729,7 +767,7 @@ const App: React.FC = () => {
             <MarketModal
                 isOpen={isMarketOpen}
                 onClose={() => setIsMarketOpen(false)}
-                players={dbPlayers.length > 0 ? dbPlayers : SEED_PLAYERS}
+                players={dbPlayers.length > 0 ? dbPlayers : INITIAL_DB_DATA}
                 positionFilter={getMarketFilter(marketSlotIndex)}
                 onSelect={handlePlayerSelect}
                 currentBudget={remainingBudget}
