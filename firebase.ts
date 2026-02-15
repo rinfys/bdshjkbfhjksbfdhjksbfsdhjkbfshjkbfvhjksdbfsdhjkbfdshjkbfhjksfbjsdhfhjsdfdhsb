@@ -118,6 +118,8 @@ try {
         app = initializeApp(firebaseConfig);
     }
 
+    // App Check removed to fix build errors in this environment
+
     db = getDatabase(app);
     auth = getAuth(app);
     isFirebaseAvailable = true;
