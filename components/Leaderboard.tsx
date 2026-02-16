@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Player, UserData, TeamSlot } from '../types';
 import { fetchAllUsers } from '../firebase';
-import { Trophy, Medal, User as UserIcon, Calendar, Hash, CheckCircle } from 'lucide-react';
+import { Trophy, Medal, User as UserIcon, Calendar, Hash, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface LeaderboardProps {
     players: Player[]; // Global market players (live data)
@@ -58,11 +58,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                 };
             });
 
-            // Filter for only submitted teams
-            const validEntries = calculatedEntries.filter(e => e.isSubmitted);
-
-            // Sort initially by Weekly
-            setEntries(validEntries);
+            // No filter! Show everyone.
+            setEntries(calculatedEntries);
             setLoading(false);
         };
 
@@ -92,7 +89,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                 <h2 className="text-4xl font-extrabold text-white mb-2 tracking-tight">Global Standings</h2>
                 <p className="text-gray-400 text-base max-w-lg">Check how you stack up against the best managers in the world.</p>
                 <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 bg-black/20 px-3 py-1.5 rounded-full border border-white/5">
-                    <CheckCircle size={12} className="text-fpl-green" /> Only submitted squads are shown
+                    <CheckCircle size={12} className="text-fpl-green" /> Showing all managers
                 </div>
             </div>
 
@@ -141,7 +138,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                             <tr>
                                 <td colSpan={3} className="p-12 text-center text-gray-500">
                                     No active managers found for this week.<br/>
-                                    <span className="text-xs opacity-50">Make sure to submit your squad to appear here!</span>
+                                    <span className="text-xs opacity-50">Create a team to be the first!</span>
                                 </td>
                             </tr>
                         ) : (
@@ -161,8 +158,17 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                                                     <img src={entry.avatar} alt="Avatar" className="w-full h-full object-cover" />
                                                 </div>
                                                 <div>
-                                                    <div className={`font-bold text-base mb-0.5 ${isMe ? 'text-fpl-green' : 'text-white'}`}>
+                                                    <div className={`font-bold text-base mb-0.5 flex items-center gap-2 ${isMe ? 'text-fpl-green' : 'text-white'}`}>
                                                         {entry.teamName}
+                                                        {entry.isSubmitted ? (
+                                                            <div className="bg-blue-500/20 rounded-full p-0.5" title="Squad Submitted">
+                                                                <CheckCircle size={12} className="text-blue-400" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="bg-yellow-500/20 rounded-full p-0.5" title="Not Submitted">
+                                                                <AlertCircle size={12} className="text-yellow-500" />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className="text-xs text-gray-500 flex items-center gap-1.5 uppercase font-medium tracking-wider">
                                                         <UserIcon size={10} /> {entry.username} {isMe && <span className="text-fpl-green ml-1 px-1.5 py-0.5 bg-fpl-green/10 rounded text-[9px] border border-fpl-green/20">YOU</span>}

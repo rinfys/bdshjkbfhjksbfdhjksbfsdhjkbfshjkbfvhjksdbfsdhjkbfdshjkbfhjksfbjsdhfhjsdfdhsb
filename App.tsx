@@ -12,7 +12,7 @@ import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 
 import { INITIAL_TEAM_SLOTS } from './constants';
-import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, Eye, AlertTriangle, Plus, RefreshCw, XCircle, CheckCircle, Send } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, Eye, AlertTriangle, Plus, RefreshCw, XCircle, CheckCircle, Send, Save } from 'lucide-react';
 import { Player, TeamSlot, UserSettings } from './types';
 import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA } from './firebase';
 import { User } from 'firebase/auth';
@@ -145,8 +145,6 @@ const App: React.FC = () => {
                     setSettings(mergedSettings);
 
                     // CHECK: Do we have a username?
-                    // We only require the username string to be present to skip setup.
-                    // We do NOT strictly check usernameLastChanged here to avoid looping legacy users.
                     if (!mergedSettings.username || mergedSettings.username.trim() === '') {
                         setIsUsernameSetup(true);
                     } else {
@@ -206,20 +204,13 @@ const App: React.FC = () => {
 
         const unsubscribeMarket = subscribeToPlayers((fetchedPlayers) => {
             if (!fetchedPlayers || fetchedPlayers.length === 0) {
-                // If DB is empty, automatically seed it with our seed data from firebase.ts
                 console.log("Database empty. Seeding...");
-                // CHANGE: Make silent false so we see errors in console/alert if writes fail
                 seedDatabase(INITIAL_DB_DATA, false);
-
-                // Optimistically set local state so user doesn't see empty list while uploading
                 setDbPlayers(INITIAL_DB_DATA);
             } else {
-                // If we have data, use the Database data!
                 setDbPlayers(fetchedPlayers);
             }
 
-            // LIVE UPDATE Slots based on new data (whether from DB or constant fallback)
-            // This ensures if a player's points/price update in DB, the team slot updates immediately
             const sourceData = (fetchedPlayers && fetchedPlayers.length > 0) ? fetchedPlayers : INITIAL_DB_DATA;
 
             setSlots(currentSlots => {
@@ -244,12 +235,10 @@ const App: React.FC = () => {
 
     // Theme Application
     useEffect(() => {
-        // Fix Light Mode Visibility
         if (settings.theme === 'light') {
             document.body.style.backgroundColor = '#f3f4f6'; // Light Gray
             document.body.style.color = '#1f2937'; // Dark Gray
         } else {
-            // Dark Mode Aesthetics
             document.body.style.backgroundColor = '#1a001e';
             document.body.style.color = '#ffffff';
         }
@@ -258,18 +247,27 @@ const App: React.FC = () => {
     // --- HELPERS ---
 
     const persistTeam = (newSlots: TeamSlot[]) => {
-        // Validation: Check if all 8 slots are filled
-        const filledCount = newSlots.filter(s => s.player !== null).length;
-        const complete = filledCount === 8;
+        // Validation: Check if STARTING 5 (Indices 0-4) are filled
+        // Slot 0 (GK) + Slots 1-4 (Outfield)
+        const starters = newSlots.filter(s => s.type === 'starter');
+        const startersFilled = starters.every(s => s.player !== null);
+
+        const complete = startersFilled;
 
         setIsSquadComplete(complete);
         setSlots(newSlots);
+
+        // NOTE: ANY change to the team REVOKES submission status
+        // This forces the user to "Submit" again to lock in the new squad
+        const newSubmittedState = false;
+        setIsSubmitted(newSubmittedState);
 
         if(user) {
             // Persist to Firebase
             saveUserTeam(user.uid, {
                 slots: newSlots,
-                isSquadComplete: complete
+                isSquadComplete: complete,
+                isSubmitted: newSubmittedState
             });
         }
     };
@@ -286,9 +284,20 @@ const App: React.FC = () => {
 
     const handleSubmitSquad = () => {
         if (!user) return;
+
+        // Final Validation Check
+        const starters = slots.filter(s => s.type === 'starter');
+        const startersFilled = starters.every(s => s.player !== null);
+
+        if (!startersFilled) {
+            setNotification("You must fill your starting 5 before submitting!");
+            setTimeout(() => setNotification(null), 3000);
+            return;
+        }
+
         setIsSubmitted(true);
         saveUserTeam(user.uid, { isSubmitted: true });
-        setNotification("Squad Submitted! You are now entered in the leaderboard.");
+        setNotification("Squad Submitted! Good luck for Gameweek " + gameweek);
         setTimeout(() => setNotification(null), 3000);
         setIsEditMode(false);
     };
@@ -317,7 +326,6 @@ const App: React.FC = () => {
         // Step 2 is "Build Your Squad". Enable Edit Mode so users can interact.
         if (step === 2) {
             setIsEditMode(true);
-            // Optional: scroll to pitch if not already visible
             setTimeout(() => {
                 const el = document.getElementById('pitch-container');
                 if(el) {
@@ -533,7 +541,7 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className={`min-h-screen font-sans ${bgMain} ${textMain} selection:bg-fpl-green selection:text-[#29002d] flex flex-col overflow-x-hidden transition-colors duration-700`}>
+        <div className={`min-h-screen font-sans ${bgMain} ${textMain} selection:bg-fpl-green selection:text-[#29002d] flex flex-col overflow-x-hidden transition-colors duration-700 pb-20`}>
 
             <GuideOverlay
                 active={showGuide}
@@ -549,6 +557,27 @@ const App: React.FC = () => {
                     <div className="bg-fpl-pink text-white px-6 py-3 rounded-full shadow-[0_0_20px_rgba(233,0,82,0.4)] flex items-center gap-3 font-bold border border-white/20">
                         {notification.includes("Submitted") ? <CheckCircle size={20} /> : <XCircle size={20} />}
                         {notification}
+                    </div>
+                </div>
+            )}
+
+            {/* UNSAVED CHANGES / SUBMIT BAR */}
+            {!isSubmitted && isSquadComplete && (
+                <div className="fixed bottom-0 left-0 w-full bg-fpl-pink/95 backdrop-blur-md z-[150] border-t border-white/20 shadow-[0_-10px_40px_rgba(233,0,82,0.3)] animate-in slide-in-from-bottom-full duration-500">
+                    <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 text-white">
+                            <AlertTriangle className="animate-bounce" size={24} />
+                            <div>
+                                <h3 className="font-bold text-lg leading-none uppercase tracking-wide">Squad Changes Detected</h3>
+                                <p className="text-xs text-white/80">You have edited your team. You must submit to lock in these changes.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleSubmitSquad}
+                            className="w-full sm:w-auto px-8 py-3 bg-white text-fpl-pink font-extrabold text-sm rounded-xl uppercase tracking-widest hover:scale-105 transition shadow-xl flex items-center justify-center gap-2"
+                        >
+                            <Send size={16} /> Submit Squad
+                        </button>
                     </div>
                 </div>
             )}
@@ -613,9 +642,13 @@ const App: React.FC = () => {
                                         <div className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border transition-colors duration-500 ${isEditMode ? 'bg-fpl-pink/10 text-fpl-pink border-fpl-pink/20' : 'bg-fpl-green/10 text-fpl-green border-fpl-green/20'}`}>
                                             Manager: {settings.username}
                                         </div>
-                                        {isSubmitted && (
+                                        {isSubmitted ? (
                                             <div className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border bg-blue-500/10 text-blue-400 border-blue-500/20 flex items-center gap-1">
                                                 <CheckCircle size={10} /> Submitted
+                                            </div>
+                                        ) : (
+                                            <div className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1 animate-pulse">
+                                                <AlertTriangle size={10} /> Not Submitted
                                             </div>
                                         )}
                                     </div>
@@ -667,7 +700,7 @@ const App: React.FC = () => {
                                     <button onClick={nextGw} disabled className={`p-3 cursor-not-allowed rounded-xl transition ${isLight ? 'text-gray-300 hover:bg-gray-100' : 'text-white/20 hover:bg-white/5'}`}><ChevronRight size={24}/></button>
                                 </div>
 
-                                {/* EDIT / VIEW TOGGLE & SUBMIT */}
+                                {/* EDIT / VIEW TOGGLE */}
                                 <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-3 z-10">
                                     {isLocked && (
                                         <div className="absolute top-2 right-2 z-20 flex items-center gap-1 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-[10px] font-bold uppercase tracking-widest animate-pulse pointer-events-none">
@@ -694,15 +727,6 @@ const App: React.FC = () => {
                                             <Edit2 size={14} /> Edit
                                         </button>
                                     </div>
-
-                                    {!isSubmitted && isSquadComplete && (
-                                        <button
-                                            onClick={handleSubmitSquad}
-                                            className="px-6 py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 flex items-center gap-2 transition-all animate-pulse"
-                                        >
-                                            <Send size={14} /> Submit Squad
-                                        </button>
-                                    )}
                                 </div>
                             </div>
 
@@ -733,12 +757,6 @@ const App: React.FC = () => {
                                         <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-pink-200/70'}`}>Drag and swap players to automatically adjust your defensive and attacking lines.</span>
                                     </div>
                                 </div>
-
-                                {!isSquadComplete && (
-                                    <div className="bg-black/40 px-4 py-3 rounded-xl border border-red-500/30 flex items-center justify-center gap-2 text-red-400 text-sm font-bold uppercase tracking-wide">
-                                        <AlertTriangle size={16} /> Incomplete Squad
-                                    </div>
-                                )}
                             </div>
                         )}
 
@@ -746,8 +764,8 @@ const App: React.FC = () => {
                             <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-xl flex items-center gap-3 animate-pulse">
                                 <AlertTriangle className="text-red-500" size={24} />
                                 <div>
-                                    <h4 className="text-red-400 font-bold text-sm uppercase">Squad Incomplete</h4>
-                                    <p className={`text-xs ${isLight ? 'text-red-800' : 'text-red-200/70'}`}>Your team will not score points until you have 8 players selected.</p>
+                                    <h4 className="text-red-400 font-bold text-sm uppercase">Starting 5 Incomplete</h4>
+                                    <p className={`text-xs ${isLight ? 'text-red-800' : 'text-red-200/70'}`}>You must select a full starting lineup (5 players) to submit.</p>
                                 </div>
                                 <button onClick={() => toggleEditMode(true)} className="ml-auto bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase transition">
                                     Fix Now

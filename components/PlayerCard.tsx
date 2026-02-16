@@ -27,22 +27,60 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
     const fetchRobloxAvatar = async () => {
       try {
         // Step 1: Get User ID from Username using local API
-        const response1 = await fetch("/api/robloxUsernames", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usernames: [player.name], excludeBannedUsers: true })
-        });
+        let userId = null;
 
-        const data1 = await response1.json();
-        if (data1.data && data1.data.length > 0) {
-          const userId = data1.data[0].id;
+        // Try local API first
+        try {
+          const response1 = await fetch("/api/robloxUsernames", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usernames: [player.name], excludeBannedUsers: true })
+          });
+          const data1 = await response1.json();
+          if (data1.data && data1.data.length > 0) {
+            userId = data1.data[0].id;
+          }
+        } catch (e) {
+          console.debug("Local API failed, trying CORS proxy fallback for ID");
+        }
 
-          // Step 2: Get Thumbnail from User ID using local API (No CORS proxy needed)
-          const response2 = await fetch(`/api/robloxThumbnails?userIds=${userId}&size=150x150&format=Png&isCircular=true`);
-          const data2 = await response2.json();
+        // Fallback: Direct Roblox API via Proxy if Local API fails
+        if (!userId) {
+          const proxy = "https://corsproxy.io/?";
+          const target = "https://users.roblox.com/v1/usernames/users";
+          const r = await fetch(proxy + encodeURIComponent(target), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usernames: [player.name], excludeBannedUsers: true })
+          });
+          const d = await r.json();
+          if (d.data && d.data.length > 0) {
+            userId = d.data[0].id;
+          }
+        }
 
-          if (isMounted && data2.data && data2.data.length > 0 && data2.data[0].state === 'Completed') {
-            setAvatarUrl(data2.data[0].imageUrl);
+        if (userId) {
+          // Step 2: Get Thumbnail from User ID
+          // Try local API first
+          try {
+            const response2 = await fetch(`/api/robloxThumbnails?userIds=${userId}&size=150x150&format=Png&isCircular=true`);
+            if(response2.ok) {
+              const data2 = await response2.json();
+              if (isMounted && data2.data && data2.data.length > 0 && data2.data[0].state === 'Completed') {
+                setAvatarUrl(data2.data[0].imageUrl);
+                return;
+              }
+            }
+          } catch(e) { console.debug("Local thumbnail API failed"); }
+
+          // Fallback Proxy for Thumbnail
+          const proxy = "https://corsproxy.io/?";
+          const thumbUrl = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=true`;
+          const response3 = await fetch(proxy + encodeURIComponent(thumbUrl));
+          const data3 = await response3.json();
+
+          if (isMounted && data3.data && data3.data.length > 0 && data3.data[0].state === 'Completed') {
+            setAvatarUrl(data3.data[0].imageUrl);
           }
         }
       } catch (e) {
