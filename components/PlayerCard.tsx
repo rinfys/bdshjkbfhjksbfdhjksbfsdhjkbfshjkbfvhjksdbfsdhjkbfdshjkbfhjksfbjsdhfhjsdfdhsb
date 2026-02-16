@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Player } from '../types';
-import { Plus, X, ArrowRightLeft } from 'lucide-react';
+import { Plus, X, ArrowRightLeft, Crown } from 'lucide-react';
 
 interface PlayerCardProps {
   player: Player | null;
@@ -8,12 +8,14 @@ interface PlayerCardProps {
   onClick: () => void;
   onRemove?: () => void;
   onReplace?: () => void;
+  onMakeCaptain?: () => void;
   isBench?: boolean;
   isEditMode?: boolean;
   isSelected?: boolean;
+  isCaptain?: boolean;
 }
 
-const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick, onRemove, onReplace, isBench, isEditMode, isSelected }) => {
+const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick, onRemove, onReplace, onMakeCaptain, isBench, isEditMode, isSelected, isCaptain }) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,7 +28,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
     const fetchRobloxAvatar = async () => {
       let userId = null;
       try {
-        // Updated Endpoint
         const r1 = await fetch("/api/roblox-usernames", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -36,7 +37,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
         if (d1.data?.[0]?.id) userId = d1.data[0].id;
       } catch (e) { /* Fail silent */ }
 
-      // Proxy Fallback
       if (!userId) {
         try {
           const proxy = "https://corsproxy.io/?";
@@ -53,7 +53,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
 
       if (!userId) return;
 
-      // Thumbnail
       let thumb = null;
       try {
         const r3 = await fetch(`/api/robloxThumbnails?userIds=${userId}&size=150x150&format=Png&isCircular=true`);
@@ -135,23 +134,41 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
             <>
               <button
                   onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
-                  className="absolute top-0 left-3 z-30 bg-red-500 text-white rounded-full p-1 shadow-lg border border-white hover:bg-red-600 hover:scale-110 transition"
+                  className="absolute top-0 left-2 z-30 bg-red-500 text-white rounded-full p-1 shadow-lg border border-white hover:bg-red-600 hover:scale-110 transition"
+                  title="Remove Player"
               >
                 <X size={10} strokeWidth={3} />
               </button>
 
               <button
                   onClick={(e) => { e.stopPropagation(); onReplace?.(); }}
-                  className="absolute top-0 right-3 z-30 bg-[#3ACBE8] text-[#0041C7] rounded-full p-1 shadow-lg border border-white/20 hover:bg-white hover:scale-110 transition"
+                  className="absolute top-0 right-2 z-30 bg-[#3ACBE8] text-[#0041C7] rounded-full p-1 shadow-lg border border-white/20 hover:bg-white hover:scale-110 transition"
+                  title="Replace Player"
               >
                 <ArrowRightLeft size={10} strokeWidth={3} />
               </button>
+
+              <button
+                  onClick={(e) => { e.stopPropagation(); onMakeCaptain?.(); }}
+                  className={`absolute bottom-12 right-0 z-30 rounded-full p-1 shadow-lg border border-white/20 hover:scale-110 transition ${isCaptain ? 'bg-yellow-400 text-black' : 'bg-gray-600 text-gray-300 hover:bg-yellow-400 hover:text-black'}`}
+                  title="Make Captain"
+              >
+                <Crown size={10} strokeWidth={3} fill={isCaptain ? "black" : "none"} />
+              </button>
             </>
+        )}
+
+        {/* Captain Badge (Always Visible) */}
+        {!isEditMode && isCaptain && (
+            <div className="absolute top-0 right-2 z-20 bg-black text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold border border-yellow-400 shadow-md">
+              C
+            </div>
         )}
 
         <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] overflow-hidden mb-1 relative shadow-lg transition-all duration-300 flex items-center justify-center z-10
             ${!avatarUrl ? getTeamBgColor(player.teamColor) : 'bg-black/40'} 
             ${isSelected ? 'border-[#3ACBE8] shadow-[0_0_20px_rgba(58,203,232,0.6)]' : (isEditMode ? 'border-[#3ACBE8] group-hover:shadow-[0_0_15px_rgba(58,203,232,0.5)]' : 'border-white/20')}
+            ${isCaptain ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-[#0041C7]' : ''}
       `}>
           {avatarUrl ? (
               <img src={avatarUrl} alt={player.name} className="w-full h-full object-cover" />
@@ -176,7 +193,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
             {isEditMode ? (
                 <span>£{player.price}m</span>
             ) : (
-                <span>{player.points}</span>
+                // Double points if captain
+                <span>{isCaptain ? player.points * 2 : player.points}</span>
             )}
           </div>
           <div className={`text-[9px] md:text-[10px] text-white/80 text-center uppercase font-bold mt-0.5 tracking-wider rounded-sm ${isSelected ? 'bg-[#3ACBE8]/50 text-white' : 'bg-black/20'}`}>

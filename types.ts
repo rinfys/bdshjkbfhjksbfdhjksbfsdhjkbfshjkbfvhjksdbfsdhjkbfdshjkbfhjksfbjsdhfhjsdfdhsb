@@ -6,8 +6,8 @@ export interface Player {
   points: number;
   position: 'GK' | 'CD' | 'LW' | 'RW' | 'HS';
   imageUrl?: string;
-  price: number; // e.g., 10.5 (million)
-  avgRating: number; // e.g., 7.8
+  price: number;
+  avgRating: number;
   isCaptain?: boolean;
   isViceCaptain?: boolean;
   warnings?: boolean;
@@ -15,18 +15,19 @@ export interface Player {
 
 export interface TeamSlot {
   index: number;
-  position: 'GK' | 'CD' | 'LW' | 'RW' | 'HS' | 'C' | 'OUTFIELD'; // OUTFIELD allows flexibility
+  position: 'GK' | 'CD' | 'LW' | 'RW' | 'HS' | 'C' | 'OUTFIELD';
   type: 'starter' | 'bench';
   player: Player | null;
+  isCaptain?: boolean; // Track captaincy on the slot level for persistence
 }
 
 export interface UserSettings {
   username: string;
-  usernameLastChanged: number; // timestamp
+  usernameLastChanged: number;
   nickname: string;
   theme: 'dark' | 'light';
   currency: 'GBP' | 'USD' | 'EUR';
-  totalHistoryPoints?: number; // Previous gameweeks total
+  totalHistoryPoints?: number;
   profilePictureUrl?: string;
   tutorialCompleted?: boolean;
 }
@@ -37,10 +38,12 @@ export interface UserData {
   teamName: string;
   logoUrl: string;
   slots: TeamSlot[];
-  isSquadComplete?: boolean; // Validation flag
-  formation?: string; // e.g. "1-2-1", "0-4-0"
+  isSquadComplete?: boolean;
+  formation?: string;
   isSubmitted?: boolean;
   lastGameweekSaved?: number;
+  // Map of gameweek ID to points scored
+  history?: Record<string, number>;
 }
 
 export interface League {

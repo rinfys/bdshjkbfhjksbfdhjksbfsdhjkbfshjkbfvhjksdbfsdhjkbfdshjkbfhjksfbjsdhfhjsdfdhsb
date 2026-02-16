@@ -10,11 +10,12 @@ import Leaderboard from './components/Leaderboard';
 import About from './components/About';
 import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
+import RulesModal from './components/RulesModal';
 
 import { INITIAL_TEAM_SLOTS, GAMEWEEK_SCHEDULE } from './constants';
-import { ChevronLeft, ChevronRight, Edit2, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard, Lock as LockIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard, Lock as LockIcon, BookOpen } from 'lucide-react';
 import { Player, TeamSlot, UserSettings } from './types';
-import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA } from './firebase';
+import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA, logLeaderboardEntry } from './firebase';
 import { User } from 'firebase/auth';
 
 const MAX_BUDGET = 100.0;
@@ -44,54 +45,48 @@ const App: React.FC = () => {
     // User State
     const [currentPage, setCurrentPage] = useState('home');
     const [view, setView] = useState<'pitch' | 'list'>('pitch');
-    const [viewGameweek, setViewGameweek] = useState(2); // The GW being viewed
+    const [viewGameweek, setViewGameweek] = useState(2);
     const [teamName, setTeamName] = useState("My Team");
     const [logoUrl, setLogoUrl] = useState("");
     const [slots, setSlots] = useState<TeamSlot[]>(INITIAL_TEAM_SLOTS);
     const [isSquadComplete, setIsSquadComplete] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
 
-    // Edit Mode & Logic
+    // Edit Mode
     const [isEditMode, setIsEditMode] = useState(false);
     const [backupSlots, setBackupSlots] = useState<TeamSlot[]>([]);
     const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
 
-    // Settings & Modals
+    // Modals
     const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
     const [isUsernameSetup, setIsUsernameSetup] = useState(false);
     const [showGuide, setShowGuide] = useState(false);
     const [notification, setNotification] = useState<string | null>(null);
     const [isMarketOpen, setIsMarketOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isRulesOpen, setIsRulesOpen] = useState(false);
     const [marketSlotIndex, setMarketSlotIndex] = useState<number | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // --- GAMEWEEK CALCULATION ---
+    // --- GAMEWEEK & INIT ---
     useEffect(() => {
         const now = new Date().toISOString();
-        let activeGW = 2; // Default to 2
-
+        let activeGW = 2;
         for (const gw of GAMEWEEK_SCHEDULE) {
             if (now >= gw.start && now <= gw.deadline) {
                 activeGW = gw.id;
                 break;
             } else if (now > gw.deadline) {
-                // If past deadline, check next. If no next, stay on this one.
                 activeGW = gw.id + 1;
             }
         }
-        // Cap at max defined GW
         if (activeGW > GAMEWEEK_SCHEDULE.length) activeGW = GAMEWEEK_SCHEDULE.length;
-
-        // Don't allow going back to GW1
         if (activeGW < 2) activeGW = 2;
-
         setCurrentRealGameweek(activeGW);
         setViewGameweek(activeGW);
     }, []);
 
-    // --- AUTH & SYNC ---
     useEffect(() => {
         const safetyTimer = setTimeout(() => { if (authLoading) setAuthLoading(false); }, 2500);
         const unsubscribeAuth = subscribeToAuth((currentUser) => {
@@ -102,22 +97,22 @@ const App: React.FC = () => {
         return () => { unsubscribeAuth(); clearTimeout(safetyTimer); };
     }, []);
 
+    // Sync User Data & Handle Gameweek Transitions
     useEffect(() => {
         if (!user) { setUserDataLoading(false); return; }
         setUserDataLoading(true);
-        const unsubscribeUser = subscribeToUserTeam(user.uid, (data) => {
+        const unsubscribeUser = subscribeToUserTeam(user.uid, async (data) => {
             if (data) {
                 if (data.teamName) setTeamName(data.teamName);
                 setLogoUrl(data.logoUrl || "");
-                setIsSquadComplete(!!data.isSquadComplete);
 
-                // --- NEW GAMEWEEK RESET LOGIC ---
-                // If the user's last saved GW is less than the current real one,
-                // we treat it as a "New Week" and require submission again.
-                // But we keep the old slots as a starting point.
+                // GAMEWEEK TRANSITION CHECK
+                // If last saved GW < Current Real GW, we need to snapshot the previous week
                 if (data.lastGameweekSaved && data.lastGameweekSaved < currentRealGameweek) {
-                    setIsSubmitted(false); // Force re-submit for new week
+                    setIsSubmitted(false);
                     setNotification(`Welcome to Gameweek ${currentRealGameweek}! Review your team.`);
+                    // NOTE: In a real app with backend, the backend would handle snapshotting at deadline.
+                    // Here, we just acknowledge the new week and reset submission status.
                 } else {
                     setIsSubmitted(!!data.isSubmitted);
                 }
@@ -135,6 +130,7 @@ const App: React.FC = () => {
                     setSettings({ ...DEFAULT_SETTINGS, username: '' });
                     setIsUsernameSetup(true);
                 }
+
                 if (data.slots && Array.isArray(data.slots)) {
                     const mergedSlots = INITIAL_TEAM_SLOTS.map((defaultSlot, idx) => {
                         const savedSlot = data.slots[idx];
@@ -161,6 +157,7 @@ const App: React.FC = () => {
         return () => unsubscribeUser();
     }, [user, currentRealGameweek]);
 
+    // Live Player Updates
     useEffect(() => {
         if (!user) return;
         const unsubscribeMarket = subscribeToPlayers((fetchedPlayers) => {
@@ -184,16 +181,16 @@ const App: React.FC = () => {
 
     // --- ACTIONS ---
 
-    const persistTeam = (newSlots: TeamSlot[]) => {
+    const persistTeam = async (newSlots: TeamSlot[]) => {
         const starters = newSlots.filter(s => s.type === 'starter');
         const complete = starters.every(s => s.player !== null);
         setIsSquadComplete(complete);
         setSlots(newSlots);
         if(user) {
-            saveUserTeam(user.uid, {
+            await saveUserTeam(user.uid, {
                 slots: newSlots,
                 isSquadComplete: complete,
-                isSubmitted: false, // Editing invalidates submission until verified
+                isSubmitted: false,
                 lastGameweekSaved: currentRealGameweek
             });
             setIsSubmitted(false);
@@ -201,18 +198,14 @@ const App: React.FC = () => {
     };
 
     const enterEditMode = () => {
-        // Find current deadline
         const currentGWConfig = GAMEWEEK_SCHEDULE.find(g => g.id === currentRealGameweek);
         const deadline = currentGWConfig ? new Date(currentGWConfig.deadline).getTime() : Date.now();
         const now = Date.now();
-
-        // Simple check: Is deadline passed?
         if (now > deadline) {
             setNotification(`Gameweek ${currentRealGameweek} is Locked! Wait for GW${currentRealGameweek+1}.`);
             setTimeout(() => setNotification(null), 4000);
             return;
         }
-
         setBackupSlots(JSON.parse(JSON.stringify(slots)));
         setIsEditMode(true);
     };
@@ -220,11 +213,10 @@ const App: React.FC = () => {
     const cancelEditMode = () => {
         setSlots(backupSlots);
         setIsEditMode(false);
-        // Revert DB to backup
         if (user) saveUserTeam(user.uid, { slots: backupSlots });
     };
 
-    const handleSubmitSquad = () => {
+    const handleSubmitSquad = async () => {
         if (!user) return;
         const starters = slots.filter(s => s.type === 'starter');
         if (!starters.every(s => s.player !== null)) {
@@ -232,15 +224,51 @@ const App: React.FC = () => {
             setTimeout(() => setNotification(null), 3000);
             return;
         }
+        // Ensure captain selected
+        if (!slots.some(s => s.isCaptain && s.type === 'starter')) {
+            setNotification("You must select a Captain!");
+            setTimeout(() => setNotification(null), 3000);
+            return;
+        }
+
         setIsSubmitted(true);
-        saveUserTeam(user.uid, {
+        await saveUserTeam(user.uid, {
             isSubmitted: true,
             slots: slots,
-            lastGameweekSaved: currentRealGameweek // Log this submission for the current week
+            lastGameweekSaved: currentRealGameweek
         });
-        setNotification(`Squad Submitted for Gameweek ${currentRealGameweek}!`);
+
+        // CALCULATE POINTS SNAPSHOT FOR LOGGING
+        // Note: For live leaderboard, we usually just let it read current data.
+        // But the prompt asked to "log" it. So we write to the dedicated collection.
+        const currentPoints = slots.filter(s => s.type === 'starter' && s.player).reduce((acc, slot) => {
+            let pts = slot.player?.points || 0;
+            if (slot.isCaptain) pts *= 2;
+            return acc + pts;
+        }, 0);
+
+        await logLeaderboardEntry(currentRealGameweek, user.uid, {
+            points: currentPoints,
+            teamName: teamName,
+            username: settings.username,
+            avatar: logoUrl
+        });
+
+        setNotification(`Squad Submitted for GW${currentRealGameweek}! Points logged.`);
         setTimeout(() => setNotification(null), 3000);
         setIsEditMode(false);
+    };
+
+    const handleMakeCaptain = (index: number) => {
+        if (!isEditMode) return;
+        if (!slots[index].player) return;
+        const newSlots = slots.map((s, i) => ({
+            ...s,
+            isCaptain: i === index
+        }));
+        persistTeam(newSlots);
+        setNotification(`Captain set to ${slots[index].player?.name}`);
+        setTimeout(() => setNotification(null), 2000);
     };
 
     const persistName = (name: string) => { setTeamName(name); if(user) saveUserTeam(user.uid, { teamName: name }); };
@@ -249,7 +277,7 @@ const App: React.FC = () => {
     const handleGuideStepChange = (step: number) => { if (step === 2 && !isEditMode) enterEditMode(); };
     const handleLogoClick = () => isEditMode && fileInputRef.current?.click();
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { persistLogo(reader.result as string); }; reader.readAsDataURL(file); } };
-    const handleRemovePlayer = (index: number) => { if (!isEditMode) return; const newSlots = [...slots]; newSlots[index].player = null; persistTeam(newSlots); setSelectedSlotIndex(null); };
+    const handleRemovePlayer = (index: number) => { if (!isEditMode) return; const newSlots = [...slots]; newSlots[index].player = null; newSlots[index].isCaptain = false; persistTeam(newSlots); setSelectedSlotIndex(null); };
     const handleReplacePlayer = (index: number) => { if (!isEditMode) return; setMarketSlotIndex(index); setIsMarketOpen(true); setSelectedSlotIndex(null); };
 
     const handleSlotClick = (index: number) => {
@@ -257,18 +285,29 @@ const App: React.FC = () => {
         if (selectedSlotIndex !== null) {
             if (selectedSlotIndex === index) { setSelectedSlotIndex(null); } else {
                 const newSlots = [...slots];
-                const player1 = newSlots[selectedSlotIndex].player;
-                const player2 = newSlots[index].player;
+                const s1 = newSlots[selectedSlotIndex];
+                const s2 = newSlots[index];
+
+                // Check GK
                 const isGKSlot = (i: number) => i === 0 || i === 5;
                 const isGKPlayer = (p: Player | null) => p?.position === 'GK';
-                if ((isGKSlot(index) && player1 && !isGKPlayer(player1)) || (isGKSlot(selectedSlotIndex) && player2 && !isGKPlayer(player2))) {
+                if ((isGKSlot(index) && s1.player && !isGKPlayer(s1.player)) || (isGKSlot(selectedSlotIndex) && s2.player && !isGKPlayer(s2.player))) {
                     setNotification("Only Goalkeepers can play in GK slots.");
                     setTimeout(() => setNotification(null), 3000);
                     setSelectedSlotIndex(null);
                     return;
                 }
-                newSlots[selectedSlotIndex].player = player2;
-                newSlots[index].player = player1;
+
+                // Swap logic
+                const tempPlayer = s1.player;
+                const tempCap = s1.isCaptain;
+
+                newSlots[selectedSlotIndex].player = s2.player;
+                newSlots[selectedSlotIndex].isCaptain = s2.isCaptain;
+
+                newSlots[index].player = tempPlayer;
+                newSlots[index].isCaptain = tempCap;
+
                 persistTeam(newSlots);
                 setSelectedSlotIndex(null);
             }
@@ -282,7 +321,7 @@ const App: React.FC = () => {
         const existing = slots.findIndex(s => s.player?.id === player.id);
         if (existing !== -1 && existing !== marketSlotIndex) { setNotification("Player already in squad!"); setTimeout(() => setNotification(null), 3000); return; }
         const newSlots = [...slots];
-        newSlots[marketSlotIndex] = { ...newSlots[marketSlotIndex], player: player };
+        newSlots[marketSlotIndex] = { ...newSlots[marketSlotIndex], player: player, isCaptain: false };
         persistTeam(newSlots);
         setIsMarketOpen(false);
         setMarketSlotIndex(null);
@@ -290,7 +329,6 @@ const App: React.FC = () => {
 
     const getMarketFilter = (index: number | null) => { if (index === null) return ''; if (index === 0 || index === 5) return 'GK'; return 'OUTFIELD'; };
 
-    // Calculations
     const filledSlots = slots.filter(s => s.player !== null);
     const totalValue = filledSlots.reduce((acc, s) => acc + (s.player?.price || 0), 0);
     const remainingBudget = MAX_BUDGET - totalValue;
@@ -298,15 +336,21 @@ const App: React.FC = () => {
     const benchList = slots.filter(s => s.type === 'bench').map(s => s.player).filter((p): p is Player => !!p);
     const ownedPlayerIds = slots.map(s => s.player?.id).filter((id): id is number => id !== undefined);
 
+    // Live Point Calculation for display
+    const currentPoints = slots.filter(s => s.type === 'starter' && s.player).reduce((acc, slot) => {
+        let pts = slot.player?.points || 0;
+        if (slot.isCaptain) pts *= 2;
+        return acc + pts;
+    }, 0);
+
     const isLight = settings.theme === 'light';
     const bgMain = isLight ? 'bg-gray-100' : 'bg-[#0041C7]';
     const textMain = isLight ? 'text-gray-900' : 'text-white';
     const cardBg = isLight ? 'bg-white shadow-xl border-gray-200' : 'bg-[#0160C9]/80 backdrop-blur-md border-white/20 shadow-2xl';
     const currencySymbol = CURRENCY_SYMBOLS[settings.currency];
 
-    // Navigation Guards
-    const canGoBack = viewGameweek > 2; // Locked before GW2
-    const canGoForward = viewGameweek < currentRealGameweek; // Locked to current
+    const canGoBack = viewGameweek > 2;
+    const canGoForward = viewGameweek < currentRealGameweek;
 
     if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7]"><div className="animate-spin w-12 h-12 border-4 border-[#3ACBE8] rounded-full border-t-transparent"></div></div>;
     if (!user) return <Login />;
@@ -317,6 +361,7 @@ const App: React.FC = () => {
         <div className={`min-h-screen font-sans ${bgMain} ${textMain} selection:bg-[#3ACBE8] selection:text-[#0041C7] flex flex-col pb-24`}>
 
             <GuideOverlay active={showGuide} onComplete={finishGuide} teamName={teamName} logoUrl={logoUrl} onStepChange={handleGuideStepChange} />
+            <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
 
             {notification && (
                 <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top-4 fade-in">
@@ -387,13 +432,14 @@ const App: React.FC = () => {
                                         ) : (
                                             <span className="text-[10px] bg-red-500/10 text-red-300 px-2 py-0.5 rounded font-bold border border-red-500/20 flex items-center gap-1 uppercase tracking-wider"><AlertTriangle size={10}/> Unsaved for GW{currentRealGameweek}</span>
                                         )}
+                                        <button onClick={() => setIsRulesOpen(true)} className="ml-2 bg-white/10 hover:bg-white/20 p-1 rounded transition" title="Scoring Rules"><BookOpen size={12} className="text-white"/></button>
                                     </div>
                                 </div>
                             </div>
                             <div className="flex gap-8">
                                 <div className="text-right">
-                                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Total Points</div>
-                                    <div className={`text-3xl font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{settings.totalHistoryPoints || 0}</div>
+                                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">GW{currentRealGameweek} Points</div>
+                                    <div className={`text-3xl font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{currentPoints}</div>
                                 </div>
                                 <div className="text-right">
                                     <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Team Value</div>
@@ -435,7 +481,15 @@ const App: React.FC = () => {
 
                         <div id="pitch-container" className="relative">
                             {view === 'pitch' ? (
-                                <Pitch slots={slots} onSlotClick={handleSlotClick} onRemovePlayer={handleRemovePlayer} onReplacePlayer={handleReplacePlayer} isEditMode={isEditMode} selectedSlotIndex={selectedSlotIndex} />
+                                <Pitch
+                                    slots={slots}
+                                    onSlotClick={handleSlotClick}
+                                    onRemovePlayer={handleRemovePlayer}
+                                    onReplacePlayer={handleReplacePlayer}
+                                    onMakeCaptain={handleMakeCaptain}
+                                    isEditMode={isEditMode}
+                                    selectedSlotIndex={selectedSlotIndex}
+                                />
                             ) : (
                                 <PlayerList startingXI={startingList} bench={benchList} teamName={teamName} />
                             )}

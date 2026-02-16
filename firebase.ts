@@ -20,14 +20,11 @@ let db: ReturnType<typeof getDatabase> | null = null;
 let auth: ReturnType<typeof getAuth> | null = null;
 let isFirebaseAvailable = false;
 
-// Versioned collection to allow "wiping" accounts by changing this string
-// UPDATED: Nested under 'rwafantasy' root as requested
 const USERS_COLLECTION = 'rwafantasy/users';
 const PLAYERS_COLLECTION = 'rwafantasy/players';
+const LEADERBOARD_COLLECTION = 'rwafantasy/leaderboards';
 
 // --- INITIAL DATABASE SEED DATA ---
-// This serves as the "Master List" only for initializing the DB.
-// Random decimal prices applied (0-9).
 export const INITIAL_DB_DATA: Player[] = [
     // AQUAPOLIS WC (Sky)
     { id: 1, name: "LostEzyxn", teamColor: "sky", position: "RW", price: 16.8, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
@@ -111,15 +108,11 @@ export const INITIAL_DB_DATA: Player[] = [
 ];
 
 try {
-    // Check if any apps are already initialized
     if (getApps().length > 0) {
         app = getApp();
     } else {
         app = initializeApp(firebaseConfig);
     }
-
-    // App Check removed to fix build errors in this environment
-
     db = getDatabase(app);
     auth = getAuth(app);
     isFirebaseAvailable = true;
@@ -129,203 +122,130 @@ try {
     isFirebaseAvailable = false;
 }
 
-// --- AUTH FUNCTIONS ---
+// --- AUTH ---
 const provider = new GoogleAuthProvider();
-
 export const loginUser = async () => {
     if(!auth) {
-        alert("Authentication service is unavailable. Please check console for errors.");
+        alert("Authentication service is unavailable.");
         return;
     }
     return signInWithPopup(auth, provider);
 }
-
 export const logoutUser = async () => {
     if(!auth) return;
     return signOut(auth);
 }
-
 export const subscribeToAuth = (callback: (user: User | null) => void) => {
     if(!auth) {
-        console.warn("Auth not initialized. Defaulting to logged out state.");
         setTimeout(() => callback(null), 0);
         return () => {};
     }
     return onAuthStateChanged(auth, callback);
 }
 
-// --- DATA FUNCTIONS ---
-
+// --- DATA ---
 const playerPath = (id: number) => `${PLAYERS_COLLECTION}/player_${id}`;
 
-// HELPER: Check Username Uniqueness
 export const checkUsernameTaken = async (username: string): Promise<boolean> => {
     if (!isFirebaseAvailable || !db) return false;
-
     try {
         const snapshot = await get(ref(db, USERS_COLLECTION));
         if (!snapshot.exists()) return false;
-
         const users = snapshot.val();
-        const lowerUsername = username.toLowerCase();
-
+        const lower = username.toLowerCase();
         for (const uid in users) {
-            const userSettings = users[uid]?.settings;
-            if (userSettings?.username?.toLowerCase() === lowerUsername) {
-                return true;
-            }
+            if (users[uid]?.settings?.username?.toLowerCase() === lower) return true;
         }
         return false;
-    } catch (e: any) {
-        // PERMISSION ERROR HANDLING
-        // We do NOT suppress this anymore to ensure developer sees why DB is empty if rules are strict.
-        console.error("Error checking username (possibly permission denied):", e);
-        // We assume false to not block UI, but the save will likely fail too if permissions are off.
-        return false;
-    }
+    } catch (e) { return false; }
 }
 
-// GLOBAL MARKET PLAYERS
 export const subscribeToPlayers = (callback: (players: Player[]) => void) => {
     if (!isFirebaseAvailable || !db) {
-        console.warn("Firebase not available during subscribe, returning mock data.");
         setTimeout(() => callback(INITIAL_DB_DATA), 0);
         return () => {};
     }
-
     const playersRef = ref(db, PLAYERS_COLLECTION);
-
-    return onValue(
-        playersRef,
-        (snapshot) => {
-            const data = snapshot.val();
-            if (!data) {
-                // Return empty array so consumer can decide to seed
-                return callback([]);
-            }
-
-            const list: Player[] = Object.entries<any>(data).map(([key, value]) => {
-                const fromKey =
-                    typeof key === "string" && key.startsWith("player_")
-                        ? Number(key.replace("player_", ""))
-                        : undefined;
-
-                const id = Number(value?.id ?? fromKey);
-
-                return {
-                    ...value,
-                    id: Number.isFinite(id) ? id : 0,
-                } as Player;
-            });
-
-            callback(list);
-        },
-        (error) => {
-            console.error("Database Read Error (Players):", error);
-            // On error, we fallback to seed, but note that it's an error state
-            callback(INITIAL_DB_DATA);
-        }
-    );
+    return onValue(playersRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return callback([]);
+        const list: Player[] = Object.entries<any>(data).map(([key, value]) => {
+            const fromKey = typeof key === "string" && key.startsWith("player_") ? Number(key.replace("player_", "")) : undefined;
+            const id = Number(value?.id ?? fromKey);
+            return { ...value, id: Number.isFinite(id) ? id : 0 } as Player;
+        });
+        callback(list);
+    }, () => callback(INITIAL_DB_DATA));
 };
 
-// USER SPECIFIC DATA
 export const subscribeToUserTeam = (userId: string, callback: (data: any) => void) => {
     if(!db) {
-        console.warn("DB not initialized, returning null for user team");
         setTimeout(() => callback(null), 0);
         return () => {};
     }
     const userRef = ref(db, `${USERS_COLLECTION}/${userId}`);
     return onValue(userRef, (snapshot) => {
-        const val = snapshot.val();
-        callback(val);
-    }, (error) => {
-        console.error("User Sync Error:", error);
-        callback(null);
-    });
+        callback(snapshot.val());
+    }, () => callback(null));
 }
 
-// Generic save function
-export const saveUserTeam = (userId: string, data: {
-    slots?: TeamSlot[],
-    teamName?: string,
-    logoUrl?: string,
-    settings?: UserSettings,
-    isSquadComplete?: boolean,
-    formation?: string,
-    isSubmitted?: boolean,
-    lastGameweekSaved?: number
-}) => {
+// Update to support captaincy and history
+export const saveUserTeam = (userId: string, data: Partial<UserData>) => {
     if(!db) return;
     const userRef = ref(db, `${USERS_COLLECTION}/${userId}`);
-
-    // Explicitly return the promise so we can debug it
-    return update(userRef, data).then(() => {
-        console.log(`✅ Data saved successfully for user ${userId}`);
-    }).catch(err => {
-        console.error("❌ Save failed (Check Firebase Rules):", err);
-        alert("Database Save Failed! Check console for permission errors.");
+    return update(userRef, data).catch(err => {
+        console.error("Save failed:", err);
     });
 }
 
-// LEADERBOARD DATA
+// NEW: Log Leaderboard Entry
+export const logLeaderboardEntry = async (gameweek: number, userId: string, data: { points: number, teamName: string, username: string, avatar: string }) => {
+    if (!db) return;
+
+    // 1. Log to Weekly
+    const weeklyRef = ref(db, `${LEADERBOARD_COLLECTION}/gw${gameweek}/${userId}`);
+    await set(weeklyRef, data);
+
+    console.log(`Logged Leaderboard GW${gameweek} for ${userId}`);
+}
+
+// NEW: Fetch specific GW Leaderboard
+export const fetchGameweekLeaderboard = async (gameweek: number) => {
+    if (!db) return [];
+    try {
+        const snapshot = await get(ref(db, `${LEADERBOARD_COLLECTION}/gw${gameweek}`));
+        if (!snapshot.exists()) return [];
+        const data = snapshot.val();
+        return Object.keys(data).map(uid => ({ uid, ...data[uid] }));
+    } catch(e) { return []; }
+}
+
 export const fetchAllUsers = async (): Promise<UserData[]> => {
     if (!isFirebaseAvailable || !db) return [];
     try {
         const snapshot = await get(ref(db, USERS_COLLECTION));
         if (!snapshot.exists()) return [];
         const usersObj = snapshot.val();
-        return Object.keys(usersObj).map(uid => ({
-            uid,
-            ...usersObj[uid]
-        }));
-    } catch (e: any) {
-        console.error("Error fetching leaderboard:", e);
-        return [];
-    }
+        return Object.keys(usersObj).map(uid => ({ uid, ...usersObj[uid] }));
+    } catch (e: any) { return []; }
 };
 
-
-// ADMIN FUNCTIONS
+// ADMIN
 export const updatePlayerInDb = (player: Player) => {
-    if (!isFirebaseAvailable || !db) {
-        alert("Firebase not connected. Check console.");
-        return Promise.reject(new Error("Firebase not connected"));
-    }
-    return set(ref(db, playerPath(player.id)), player)
-        .then(() => console.log("Player updated in DB"))
-        .catch(err => {
-            console.error("Player Update Failed:", err);
-            alert("Failed to update player. Check permissions.");
-        });
+    if (!isFirebaseAvailable || !db) return Promise.reject("No DB");
+    return set(ref(db, playerPath(player.id)), player);
 };
-
 export const addPlayerToDb = (player: Player) => updatePlayerInDb(player);
-
 export const deletePlayerFromDb = (id: number) => {
-    if (!isFirebaseAvailable || !db) {
-        return Promise.reject(new Error("Firebase not connected"));
-    }
-    return remove(ref(db, playerPath(id)))
-        .catch(err => console.error("Delete failed:", err));
+    if (!isFirebaseAvailable || !db) return Promise.reject("No DB");
+    return remove(ref(db, playerPath(id)));
 };
-
 export const seedDatabase = async (initialPlayers: Player[], silent = false) => {
-    if (!isFirebaseAvailable || !db) {
-        if (!silent) alert("Firebase not connected.");
-        return;
-    }
-
-    console.log("Attempting to seed database...");
-
+    if (!isFirebaseAvailable || !db) { if(!silent) alert("No DB"); return; }
     try {
         await Promise.all(initialPlayers.map((p) => addPlayerToDb(p)));
-        console.log("✅ Database seeded successfully!");
-        if (!silent) alert("Database seeded successfully!");
-    } catch (e: any) {
-        console.error("❌ Seeding failed:", e);
-        if (!silent) alert("Seeding failed: " + e.message);
-    }
+        if (!silent) alert("Seeded!");
+    } catch (e: any) { if (!silent) alert("Failed: " + e.message); }
 };
 
 export { db, auth };
