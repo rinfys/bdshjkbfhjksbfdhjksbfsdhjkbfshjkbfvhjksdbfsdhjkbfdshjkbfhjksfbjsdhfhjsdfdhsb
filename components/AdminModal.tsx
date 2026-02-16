@@ -34,7 +34,6 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
     };
 
     const handleAddNew = () => {
-        // Generate a new ID (highest ID + 1)
         const newId = players.length > 0 ? Math.max(...players.map(p => p.id)) + 1 : 1;
 
         const newPlayer: Player = {
@@ -49,12 +48,8 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
         };
 
         addPlayerToDb(newPlayer);
-
-        // Automatically enter edit mode for the new player
         setEditingId(newId);
         setEditForm(newPlayer);
-
-        // Scroll to bottom (optional UI enhancement, but browser handles focus usually)
     };
 
     const handleSeed = () => {
@@ -65,13 +60,12 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
 
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <div className="bg-[#29002d] w-full max-w-5xl rounded-2xl shadow-2xl border border-white/10 flex flex-col h-[85vh]">
+            <div className="bg-[#0160C9] w-full max-w-5xl rounded-2xl shadow-2xl border border-white/10 flex flex-col h-[85vh]">
 
-                {/* Header */}
-                <div className="p-6 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-[#29002d] to-[#37003c] rounded-t-2xl">
+                <div className="p-6 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-[#0160C9] to-[#0041C7] rounded-t-2xl">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-fpl-green/20 rounded-lg">
-                            <Database className="text-fpl-green" size={24} />
+                        <div className="p-2 bg-[#3ACBE8]/20 rounded-lg">
+                            <Database className="text-[#3ACBE8]" size={24} />
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-white">Database Manager</h2>
@@ -85,8 +79,7 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                     </div>
                 </div>
 
-                {/* Toolbar */}
-                <div className="p-4 bg-[#200025] border-b border-white/5 flex flex-wrap gap-4 items-center justify-between">
+                <div className="p-4 bg-[#0041C7] border-b border-white/5 flex flex-wrap gap-4 items-center justify-between">
                     <div className="flex items-center gap-2 text-yellow-500 bg-yellow-500/10 px-3 py-2 rounded text-xs">
                         <AlertCircle size={14} />
                         <span>Changes here affect all users immediately.</span>
@@ -101,17 +94,16 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                         </button>
                         <button
                             onClick={handleAddNew}
-                            className="flex items-center gap-2 bg-fpl-green text-fpl-purple px-6 py-2 rounded-lg font-bold hover:bg-white transition shadow-lg shadow-fpl-green/20"
+                            className="flex items-center gap-2 bg-[#3ACBE8] text-[#0041C7] px-6 py-2 rounded-lg font-bold hover:bg-white transition shadow-lg shadow-[#3ACBE8]/20"
                         >
                             <Plus size={18}/> Add New Player
                         </button>
                     </div>
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                     <table className="w-full text-left border-collapse">
-                        <thead className="sticky top-0 bg-[#29002d] z-10 shadow-md">
+                        <thead className="sticky top-0 bg-[#0160C9] z-10 shadow-md">
                         <tr className="text-gray-400 border-b border-white/10 text-xs uppercase tracking-wider">
                             <th className="p-3">ID</th>
                             <th className="p-3">Name</th>
@@ -131,11 +123,10 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                                 <tr key={player.id} className={`border-b border-white/5 transition ${isEditing ? 'bg-white/5' : 'hover:bg-white/5'}`}>
                                     <td className="p-3 text-gray-500 font-mono text-xs">{player.id}</td>
 
-                                    {/* NAME */}
                                     <td className="p-3">
                                         {isEditing ? (
                                             <input
-                                                className="bg-black/40 text-white p-2 rounded w-full border border-fpl-green/50 focus:border-fpl-green outline-none"
+                                                className="bg-black/40 text-white p-2 rounded w-full border border-[#3ACBE8]/50 focus:border-[#3ACBE8] outline-none"
                                                 value={editForm.name}
                                                 onChange={e => setEditForm({...editForm, name: e.target.value})}
                                                 placeholder="Player Name"
@@ -143,7 +134,6 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                                         ) : <span className="font-bold">{player.name}</span>}
                                     </td>
 
-                                    {/* POSITION */}
                                     <td className="p-3">
                                         {isEditing ? (
                                             <select
@@ -160,7 +150,6 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                                         ) : <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${player.position === 'GK' ? 'bg-yellow-600 text-black' : 'bg-gray-700 text-white'}`}>{player.position}</span>}
                                     </td>
 
-                                    {/* COLOR */}
                                     <td className="p-3">
                                         {isEditing ? (
                                             <select
@@ -181,7 +170,6 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                                         )}
                                     </td>
 
-                                    {/* POINTS */}
                                     <td className="p-3">
                                         {isEditing ? (
                                             <input
@@ -190,10 +178,9 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                                                 value={editForm.points}
                                                 onChange={e => setEditForm({...editForm, points: Number(e.target.value)})}
                                             />
-                                        ) : <span className="text-fpl-green font-bold">{player.points}</span>}
+                                        ) : <span className="text-[#3ACBE8] font-bold">{player.points}</span>}
                                     </td>
 
-                                    {/* PRICE */}
                                     <td className="p-3">
                                         {isEditing ? (
                                             <input
@@ -205,8 +192,7 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                                         ) : <span>{player.price}</span>}
                                     </td>
 
-                                    {/* RATING */}
-                                    <td className="p-3 text-fpl-blue">
+                                    <td className="p-3 text-[#1CA3DE]">
                                         {isEditing ? (
                                             <input
                                                 type="number" step="0.1"
@@ -217,7 +203,6 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                                         ) : player.avgRating}
                                     </td>
 
-                                    {/* IMAGE */}
                                     <td className="p-3">
                                         {isEditing ? (
                                             <input
@@ -233,10 +218,9 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                                         )}
                                     </td>
 
-                                    {/* ACTIONS */}
                                     <td className="p-3 text-right">
                                         {isEditing ? (
-                                            <button onClick={handleSave} className="flex items-center gap-1 px-3 py-1.5 bg-fpl-green text-fpl-purple font-bold rounded hover:bg-white transition shadow-lg shadow-green-500/20">
+                                            <button onClick={handleSave} className="flex items-center gap-1 px-3 py-1.5 bg-[#3ACBE8] text-[#0041C7] font-bold rounded hover:bg-white transition shadow-lg shadow-green-500/20">
                                                 <Save size={14} /> Save
                                             </button>
                                         ) : (

@@ -253,7 +253,8 @@ export const saveUserTeam = (userId: string, data: {
     settings?: UserSettings,
     isSquadComplete?: boolean,
     formation?: string,
-    isSubmitted?: boolean
+    isSubmitted?: boolean,
+    lastGameweekSaved?: number
 }) => {
     if(!db) return;
     const userRef = ref(db, `${USERS_COLLECTION}/${userId}`);

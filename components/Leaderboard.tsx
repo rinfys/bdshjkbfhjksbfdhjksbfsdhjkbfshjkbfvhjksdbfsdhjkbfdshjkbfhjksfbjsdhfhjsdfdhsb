@@ -32,6 +32,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
 
             const calculatedEntries = allUsers.map(user => {
                 const startingSlots = user.slots?.filter(s => s.type === 'starter' && s.player) || [];
+
+                // Calculate LIVE points for the current team (Weekly)
+                // In a real app with historical data, this would fetch specific GW stats.
                 const liveGwPoints = startingSlots.reduce((acc, slot) => {
                     if (!slot.player) return acc;
                     const livePlayer = players.find(p => p.id === slot.player!.id);
@@ -39,6 +42,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                 }, 0);
 
                 const history = user.settings?.totalHistoryPoints || 0;
+                // Total Points = History (Banked) + Current Live
                 const total = history + liveGwPoints;
 
                 return {

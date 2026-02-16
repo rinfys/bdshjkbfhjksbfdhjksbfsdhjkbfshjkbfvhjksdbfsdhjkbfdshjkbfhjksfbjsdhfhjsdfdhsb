@@ -17,7 +17,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
     const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Sync form when settings load/change
     useEffect(() => {
         setFormData(currentSettings);
     }, [currentSettings, isOpen]);
@@ -26,7 +25,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
 
     const isLight = formData.theme === 'light';
 
-    // 15 Days in milliseconds
     const COOLDOWN_MS = 15 * 24 * 60 * 60 * 1000;
     const timeSinceLastChange = Date.now() - (formData.usernameLastChanged || 0);
     const canChangeUsername = timeSinceLastChange > COOLDOWN_MS;
@@ -54,7 +52,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
             return;
         }
 
-        // Update timestamp if username changed
         const usernameChanged = formData.username !== currentSettings.username;
 
         if (usernameChanged) {
@@ -64,7 +61,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                 return;
             }
 
-            // Check for Uniqueness
             const isTaken = await checkUsernameTaken(formData.username);
             if (isTaken) {
                 setError('This username is already taken. Please choose another.');
@@ -83,19 +79,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
         onClose();
     };
 
-    // --- STYLES BASED ON PREVIEW THEME ---
-    const modalBg = isLight ? 'bg-white' : 'bg-[#29002d]';
+    const modalBg = isLight ? 'bg-white' : 'bg-[#0160C9]';
     const textColor = isLight ? 'text-gray-900' : 'text-white';
     const borderColor = isLight ? 'border-gray-200' : 'border-white/10';
-    const inputBg = isLight ? 'bg-gray-100 border-gray-300 focus:border-black' : 'bg-black/30 border-white/10 focus:border-fpl-green';
-    const sectionTitleColor = isLight ? 'text-gray-500' : 'text-gray-400';
+    const inputBg = isLight ? 'bg-gray-100 border-gray-300 focus:border-black' : 'bg-black/30 border-white/10 focus:border-[#3ACBE8]';
+    const sectionTitleColor = isLight ? 'text-gray-500' : 'text-gray-300';
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className={`${modalBg} ${textColor} w-full max-w-md rounded-2xl shadow-2xl border ${borderColor} flex flex-col overflow-hidden transition-colors duration-300`}>
 
-                {/* Header */}
-                <div className={`p-6 border-b ${borderColor} flex items-center justify-between ${isLight ? 'bg-gray-50' : 'bg-gradient-to-r from-[#29002d] to-[#37003c]'}`}>
+                <div className={`p-6 border-b ${borderColor} flex items-center justify-between ${isLight ? 'bg-gray-50' : 'bg-gradient-to-r from-[#0160C9] to-[#0041C7]'}`}>
                     <h2 className="text-xl font-bold">User Settings</h2>
                     <button onClick={onClose} className={`p-2 rounded-full transition ${isLight ? 'hover:bg-gray-200 text-gray-500' : 'hover:bg-white/10 text-gray-400 hover:text-white'}`}>
                         <X size={20} />
@@ -103,8 +97,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                 </div>
 
                 <div className="p-6 space-y-6">
-
-                    {/* Profile Picture */}
                     <div className="flex flex-col items-center">
                         <div className={`relative w-24 h-24 rounded-full overflow-hidden border-2 mb-3 shadow-lg group cursor-pointer ${isLight ? 'border-gray-300 bg-gray-200' : 'border-white/20 bg-black/40'}`} onClick={() => fileInputRef.current?.click()}>
                             {formData.profilePictureUrl ? (
@@ -122,7 +114,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                         <span className="text-xs font-bold uppercase tracking-wider opacity-60">Change Profile Picture</span>
                     </div>
 
-                    {/* Username Section */}
                     <div>
                         <label className={`block text-xs uppercase tracking-wider ${sectionTitleColor} mb-2 font-bold`}>Unique Username</label>
                         <div className="relative">
@@ -139,16 +130,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                                 </div>
                             )}
                         </div>
-                        <p className={`text-[10px] mt-1 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>Changes are limited to once every 15 days.</p>
+                        <p className={`text-[10px] mt-1 ${isLight ? 'text-gray-400' : 'text-gray-400'}`}>Changes are limited to once every 15 days.</p>
                     </div>
 
-                    {/* Appearance */}
                     <div>
                         <label className={`block text-xs uppercase tracking-wider ${sectionTitleColor} mb-2 font-bold`}>Appearance</label>
                         <div className={`flex p-1 rounded-lg border ${isLight ? 'bg-gray-100 border-gray-200' : 'bg-black/30 border-white/10'}`}>
                             <button
                                 onClick={() => setFormData({...formData, theme: 'dark'})}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition ${formData.theme === 'dark' ? 'bg-[#37003c] text-white shadow-md' : 'text-gray-500 hover:text-black'}`}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition ${formData.theme === 'dark' ? 'bg-[#0041C7] text-white shadow-md' : 'text-gray-500 hover:text-black'}`}
                             >
                                 <Moon size={14} /> Dark
                             </button>
@@ -161,7 +151,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                         </div>
                     </div>
 
-                    {/* Currency */}
                     <div>
                         <label className={`block text-xs uppercase tracking-wider ${sectionTitleColor} mb-2 font-bold`}>Currency</label>
                         <div className="grid grid-cols-3 gap-2">
@@ -169,7 +158,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                                 <button
                                     key={curr}
                                     onClick={() => setFormData({...formData, currency: curr})}
-                                    className={`py-2 rounded-lg border text-sm font-bold transition ${formData.currency === curr ? 'bg-fpl-green text-fpl-purple border-fpl-green' : `${inputBg} ${isLight ? 'text-gray-500 hover:border-gray-400' : 'text-gray-400 hover:border-white/30'}`}`}
+                                    className={`py-2 rounded-lg border text-sm font-bold transition ${formData.currency === curr ? 'bg-[#3ACBE8] text-[#0041C7] border-[#3ACBE8]' : `${inputBg} ${isLight ? 'text-gray-500 hover:border-gray-400' : 'text-gray-400 hover:border-white/30'}`}`}
                                 >
                                     {curr === 'GBP' && '£'} {curr === 'USD' && '$'} {curr === 'EUR' && '€'} {curr}
                                 </button>
@@ -184,11 +173,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                     )}
                 </div>
 
-                <div className={`p-6 border-t ${borderColor} ${isLight ? 'bg-gray-50' : 'bg-[#200025]'}`}>
+                <div className={`p-6 border-t ${borderColor} ${isLight ? 'bg-gray-50' : 'bg-[#0041C7]'}`}>
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="w-full bg-fpl-green hover:bg-emerald-400 text-fpl-purple font-bold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-fpl-green/20 disabled:opacity-50 disabled:cursor-wait"
+                        className="w-full bg-[#3ACBE8] hover:bg-white text-[#0041C7] font-bold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#3ACBE8]/20 disabled:opacity-50 disabled:cursor-wait"
                     >
                         <Save size={18} /> {isSaving ? 'Checking...' : 'Save Changes'}
                     </button>

@@ -11,15 +11,14 @@ import About from './components/About';
 import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 
-import { INITIAL_TEAM_SLOTS } from './constants';
-import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard } from 'lucide-react';
+import { INITIAL_TEAM_SLOTS, GAMEWEEK_SCHEDULE } from './constants';
+import { ChevronLeft, ChevronRight, Edit2, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard, Lock as LockIcon } from 'lucide-react';
 import { Player, TeamSlot, UserSettings } from './types';
 import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA } from './firebase';
 import { User } from 'firebase/auth';
 
 const MAX_BUDGET = 100.0;
-const DEADLINE_ISO = "2026-02-21T15:00:00Z";
-const UNLOCK_ISO = "2026-02-23T00:00:00Z";
+const CURRENCY_SYMBOLS = { 'GBP': '£', 'USD': '$', 'EUR': '€' };
 
 const DEFAULT_SETTINGS: UserSettings = {
     username: '',
@@ -32,38 +31,67 @@ const DEFAULT_SETTINGS: UserSettings = {
     tutorialCompleted: false
 };
 
-const CURRENCY_SYMBOLS = { 'GBP': '£', 'USD': '$', 'EUR': '€' };
-
 const App: React.FC = () => {
+    // Auth & Data
     const [user, setUser] = useState<User | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [userDataLoading, setUserDataLoading] = useState(true);
+
+    // Global State
+    const [dbPlayers, setDbPlayers] = useState<Player[]>([]);
+    const [currentRealGameweek, setCurrentRealGameweek] = useState(2);
+
+    // User State
     const [currentPage, setCurrentPage] = useState('home');
     const [view, setView] = useState<'pitch' | 'list'>('pitch');
-    const [gameweek, setGameweek] = useState(2);
+    const [viewGameweek, setViewGameweek] = useState(2); // The GW being viewed
     const [teamName, setTeamName] = useState("My Team");
     const [logoUrl, setLogoUrl] = useState("");
+    const [slots, setSlots] = useState<TeamSlot[]>(INITIAL_TEAM_SLOTS);
+    const [isSquadComplete, setIsSquadComplete] = useState(false);
+    const [isSubmitted, setIsSubmitted] = useState(false);
+
+    // Edit Mode & Logic
     const [isEditMode, setIsEditMode] = useState(false);
     const [backupSlots, setBackupSlots] = useState<TeamSlot[]>([]);
     const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
+
+    // Settings & Modals
     const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
     const [isUsernameSetup, setIsUsernameSetup] = useState(false);
     const [showGuide, setShowGuide] = useState(false);
     const [notification, setNotification] = useState<string | null>(null);
-    const [dbPlayers, setDbPlayers] = useState<Player[]>([]);
-    const [slots, setSlots] = useState<TeamSlot[]>(INITIAL_TEAM_SLOTS);
-    const [isSquadComplete, setIsSquadComplete] = useState(false);
-    const [isSubmitted, setIsSubmitted] = useState(false);
     const [isMarketOpen, setIsMarketOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [marketSlotIndex, setMarketSlotIndex] = useState<number | null>(null);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const now = Date.now();
-    const deadlineTime = new Date(DEADLINE_ISO).getTime();
-    const unlockTime = new Date(UNLOCK_ISO).getTime();
-    const isLocked = now > deadlineTime && now < unlockTime;
+    // --- GAMEWEEK CALCULATION ---
+    useEffect(() => {
+        const now = new Date().toISOString();
+        let activeGW = 2; // Default to 2
 
+        for (const gw of GAMEWEEK_SCHEDULE) {
+            if (now >= gw.start && now <= gw.deadline) {
+                activeGW = gw.id;
+                break;
+            } else if (now > gw.deadline) {
+                // If past deadline, check next. If no next, stay on this one.
+                activeGW = gw.id + 1;
+            }
+        }
+        // Cap at max defined GW
+        if (activeGW > GAMEWEEK_SCHEDULE.length) activeGW = GAMEWEEK_SCHEDULE.length;
+
+        // Don't allow going back to GW1
+        if (activeGW < 2) activeGW = 2;
+
+        setCurrentRealGameweek(activeGW);
+        setViewGameweek(activeGW);
+    }, []);
+
+    // --- AUTH & SYNC ---
     useEffect(() => {
         const safetyTimer = setTimeout(() => { if (authLoading) setAuthLoading(false); }, 2500);
         const unsubscribeAuth = subscribeToAuth((currentUser) => {
@@ -82,7 +110,18 @@ const App: React.FC = () => {
                 if (data.teamName) setTeamName(data.teamName);
                 setLogoUrl(data.logoUrl || "");
                 setIsSquadComplete(!!data.isSquadComplete);
-                setIsSubmitted(!!data.isSubmitted);
+
+                // --- NEW GAMEWEEK RESET LOGIC ---
+                // If the user's last saved GW is less than the current real one,
+                // we treat it as a "New Week" and require submission again.
+                // But we keep the old slots as a starting point.
+                if (data.lastGameweekSaved && data.lastGameweekSaved < currentRealGameweek) {
+                    setIsSubmitted(false); // Force re-submit for new week
+                    setNotification(`Welcome to Gameweek ${currentRealGameweek}! Review your team.`);
+                } else {
+                    setIsSubmitted(!!data.isSubmitted);
+                }
+
                 if (data.settings) {
                     const mergedSettings = { ...DEFAULT_SETTINGS, ...data.settings };
                     setSettings(mergedSettings);
@@ -104,7 +143,15 @@ const App: React.FC = () => {
                     setSlots(mergedSlots);
                 }
             } else {
-                const initialData = { teamName: "My Team", slots: INITIAL_TEAM_SLOTS, logoUrl: "", settings: { ...DEFAULT_SETTINGS, username: '' }, isSquadComplete: false, isSubmitted: false };
+                const initialData = {
+                    teamName: "My Team",
+                    slots: INITIAL_TEAM_SLOTS,
+                    logoUrl: "",
+                    settings: { ...DEFAULT_SETTINGS, username: '' },
+                    isSquadComplete: false,
+                    isSubmitted: false,
+                    lastGameweekSaved: currentRealGameweek
+                };
                 saveUserTeam(user.uid, initialData);
                 setSettings(initialData.settings);
                 setIsUsernameSetup(true);
@@ -112,7 +159,7 @@ const App: React.FC = () => {
             setUserDataLoading(false);
         });
         return () => unsubscribeUser();
-    }, [user]);
+    }, [user, currentRealGameweek]);
 
     useEffect(() => {
         if (!user) return;
@@ -135,15 +182,7 @@ const App: React.FC = () => {
         return () => unsubscribeMarket();
     }, [user]);
 
-    useEffect(() => {
-        if (settings.theme === 'light') {
-            document.body.style.backgroundColor = '#f3f4f6';
-            document.body.style.color = '#1f2937';
-        } else {
-            document.body.style.backgroundColor = '#0041C7';
-            document.body.style.color = '#ffffff';
-        }
-    }, [settings.theme]);
+    // --- ACTIONS ---
 
     const persistTeam = (newSlots: TeamSlot[]) => {
         const starters = newSlots.filter(s => s.type === 'starter');
@@ -151,17 +190,29 @@ const App: React.FC = () => {
         setIsSquadComplete(complete);
         setSlots(newSlots);
         if(user) {
-            saveUserTeam(user.uid, { slots: newSlots, isSquadComplete: complete, isSubmitted: false });
+            saveUserTeam(user.uid, {
+                slots: newSlots,
+                isSquadComplete: complete,
+                isSubmitted: false, // Editing invalidates submission until verified
+                lastGameweekSaved: currentRealGameweek
+            });
             setIsSubmitted(false);
         }
     };
 
     const enterEditMode = () => {
-        if (isLocked) {
-            setNotification(`Deadline Passed! Locked until ${new Date(UNLOCK_ISO).toLocaleDateString('en-GB')}.`);
+        // Find current deadline
+        const currentGWConfig = GAMEWEEK_SCHEDULE.find(g => g.id === currentRealGameweek);
+        const deadline = currentGWConfig ? new Date(currentGWConfig.deadline).getTime() : Date.now();
+        const now = Date.now();
+
+        // Simple check: Is deadline passed?
+        if (now > deadline) {
+            setNotification(`Gameweek ${currentRealGameweek} is Locked! Wait for GW${currentRealGameweek+1}.`);
             setTimeout(() => setNotification(null), 4000);
             return;
         }
+
         setBackupSlots(JSON.parse(JSON.stringify(slots)));
         setIsEditMode(true);
     };
@@ -169,6 +220,7 @@ const App: React.FC = () => {
     const cancelEditMode = () => {
         setSlots(backupSlots);
         setIsEditMode(false);
+        // Revert DB to backup
         if (user) saveUserTeam(user.uid, { slots: backupSlots });
     };
 
@@ -176,13 +228,17 @@ const App: React.FC = () => {
         if (!user) return;
         const starters = slots.filter(s => s.type === 'starter');
         if (!starters.every(s => s.player !== null)) {
-            setNotification("You must fill your starting 5 before submitting!");
+            setNotification("Fill your starting lineup first!");
             setTimeout(() => setNotification(null), 3000);
             return;
         }
         setIsSubmitted(true);
-        saveUserTeam(user.uid, { isSubmitted: true, slots: slots });
-        setNotification("Squad Submitted! Good luck.");
+        saveUserTeam(user.uid, {
+            isSubmitted: true,
+            slots: slots,
+            lastGameweekSaved: currentRealGameweek // Log this submission for the current week
+        });
+        setNotification(`Squad Submitted for Gameweek ${currentRealGameweek}!`);
         setTimeout(() => setNotification(null), 3000);
         setIsEditMode(false);
     };
@@ -234,10 +290,10 @@ const App: React.FC = () => {
 
     const getMarketFilter = (index: number | null) => { if (index === null) return ''; if (index === 0 || index === 5) return 'GK'; return 'OUTFIELD'; };
 
+    // Calculations
     const filledSlots = slots.filter(s => s.player !== null);
     const totalValue = filledSlots.reduce((acc, s) => acc + (s.player?.price || 0), 0);
     const remainingBudget = MAX_BUDGET - totalValue;
-    const startingXI = slots.filter(s => s.type === 'starter' && s.player);
     const startingList = slots.filter(s => s.type === 'starter').map(s => s.player).filter((p): p is Player => !!p);
     const benchList = slots.filter(s => s.type === 'bench').map(s => s.player).filter((p): p is Player => !!p);
     const ownedPlayerIds = slots.map(s => s.player?.id).filter((id): id is number => id !== undefined);
@@ -248,13 +304,17 @@ const App: React.FC = () => {
     const cardBg = isLight ? 'bg-white shadow-xl border-gray-200' : 'bg-[#0160C9]/80 backdrop-blur-md border-white/20 shadow-2xl';
     const currencySymbol = CURRENCY_SYMBOLS[settings.currency];
 
-    if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7]"><div className="animate-spin w-12 h-12 border-4 border-fpl-green rounded-full border-t-transparent"></div></div>;
+    // Navigation Guards
+    const canGoBack = viewGameweek > 2; // Locked before GW2
+    const canGoForward = viewGameweek < currentRealGameweek; // Locked to current
+
+    if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7]"><div className="animate-spin w-12 h-12 border-4 border-[#3ACBE8] rounded-full border-t-transparent"></div></div>;
     if (!user) return <Login />;
     if (userDataLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7] text-white font-bold animate-pulse">LOADING MANAGER...</div>;
     if (isUsernameSetup) return <UsernameSetup user={user} onComplete={(name) => { setSettings({...settings, username: name}); setIsUsernameSetup(false); saveUserTeam(user.uid, { settings: {...settings, username: name}}); setShowGuide(true); }} initialSettings={settings} />;
 
     return (
-        <div className={`min-h-screen font-sans ${bgMain} ${textMain} selection:bg-fpl-green selection:text-[#0041C7] flex flex-col pb-24`}>
+        <div className={`min-h-screen font-sans ${bgMain} ${textMain} selection:bg-[#3ACBE8] selection:text-[#0041C7] flex flex-col pb-24`}>
 
             <GuideOverlay active={showGuide} onComplete={finishGuide} teamName={teamName} logoUrl={logoUrl} onStepChange={handleGuideStepChange} />
 
@@ -268,11 +328,11 @@ const App: React.FC = () => {
             )}
 
             {isEditMode && (
-                <div className="fixed bottom-0 left-0 w-full bg-[#0160C9]/95 backdrop-blur-xl z-[100] border-t border-fpl-green/30 shadow-[0_-5px_30px_rgba(58,203,232,0.2)] animate-in slide-in-from-bottom-full duration-300">
+                <div className="fixed bottom-0 left-0 w-full bg-[#0160C9]/95 backdrop-blur-xl z-[100] border-t border-[#3ACBE8]/30 shadow-[0_-5px_30px_rgba(58,203,232,0.2)] animate-in slide-in-from-bottom-full duration-300">
                     <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
                         <div className="flex flex-col">
-                             <span className="text-xs text-fpl-green font-bold uppercase tracking-widest flex items-center gap-1">
-                                 <Edit2 size={12} /> Editing Mode Active
+                             <span className="text-xs text-[#3ACBE8] font-bold uppercase tracking-widest flex items-center gap-1">
+                                 <Edit2 size={12} /> Editing GW {currentRealGameweek}
                              </span>
                             <div className={`text-sm font-bold ${remainingBudget < 0 ? 'text-red-300' : 'text-white'}`}>
                                 Budget: {currencySymbol}{remainingBudget.toFixed(1)}m
@@ -282,7 +342,7 @@ const App: React.FC = () => {
                             <button onClick={cancelEditMode} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold uppercase flex items-center gap-2 transition border border-white/5">
                                 <Undo2 size={16} /> Cancel
                             </button>
-                            <button onClick={handleSubmitSquad} className="px-6 py-2.5 bg-fpl-green hover:bg-white text-[#0041C7] font-extrabold rounded-xl text-xs uppercase flex items-center gap-2 transition shadow-lg shadow-fpl-green/30 transform hover:scale-105">
+                            <button onClick={handleSubmitSquad} className="px-6 py-2.5 bg-[#3ACBE8] hover:bg-white text-[#0041C7] font-extrabold rounded-xl text-xs uppercase flex items-center gap-2 transition shadow-lg shadow-[#3ACBE8]/30 transform hover:scale-105">
                                 <Save size={16} /> Submit & Save
                             </button>
                         </div>
@@ -291,8 +351,8 @@ const App: React.FC = () => {
             )}
 
             <div className="fixed top-0 left-0 w-full h-screen pointer-events-none overflow-hidden z-0">
-                <div className={`absolute top-[-20%] left-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 bg-fpl-green opacity-10`}></div>
-                <div className={`absolute bottom-[-20%] right-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 bg-fpl-blue opacity-15`}></div>
+                <div className={`absolute top-[-20%] left-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 bg-[#3ACBE8] opacity-10`}></div>
+                <div className={`absolute bottom-[-20%] right-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 bg-[#1CA3DE] opacity-15`}></div>
             </div>
 
             {!isEditMode && (
@@ -303,10 +363,10 @@ const App: React.FC = () => {
 
                 {currentPage === 'home' && (
                     <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full animate-in fade-in zoom-in-95 duration-500">
-                        <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#0160C9] border-fpl-green/40 shadow-[0_0_30px_rgba(58,203,232,0.15)] scale-[1.01]' : `${cardBg}`}`}>
+                        <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#0160C9] border-[#3ACBE8]/40 shadow-[0_0_30px_rgba(58,203,232,0.15)] scale-[1.01]' : `${cardBg}`}`}>
                             <div className="flex items-center gap-6 w-full md:w-auto">
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                                <div onClick={handleLogoClick} className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 overflow-hidden shadow-lg relative group transition-all duration-300 ${isEditMode ? 'cursor-pointer border-fpl-green bg-fpl-green/10' : 'border-white/10 bg-white/5'}`}>
+                                <div onClick={handleLogoClick} className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 overflow-hidden shadow-lg relative group transition-all duration-300 ${isEditMode ? 'cursor-pointer border-[#3ACBE8] bg-[#3ACBE8]/10' : 'border-white/10 bg-white/5'}`}>
                                     {logoUrl ? (
                                         <>
                                             <img src={logoUrl} className="w-full h-full object-cover" />
@@ -316,16 +376,16 @@ const App: React.FC = () => {
                                 </div>
                                 <div>
                                     {isEditMode ? (
-                                        <input type="text" value={teamName} onChange={(e) => persistName(e.target.value)} className="bg-transparent text-2xl md:text-4xl font-black text-white border-b-2 border-fpl-green/50 focus:border-fpl-green outline-none w-full placeholder-white/30" placeholder="Team Name" />
+                                        <input type="text" value={teamName} onChange={(e) => persistName(e.target.value)} className="bg-transparent text-2xl md:text-4xl font-black text-white border-b-2 border-[#3ACBE8]/50 focus:border-[#3ACBE8] outline-none w-full placeholder-white/30" placeholder="Team Name" />
                                     ) : (
                                         <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight">{teamName}</h1>
                                     )}
                                     <div className="flex items-center gap-2 mt-2">
                                         <span className="text-xs font-bold uppercase tracking-wider text-gray-300 opacity-70">Manager: {settings.username}</span>
                                         {isSubmitted ? (
-                                            <span className="text-[10px] bg-fpl-green/10 text-fpl-green px-2 py-0.5 rounded font-bold border border-fpl-green/20 flex items-center gap-1 uppercase tracking-wider"><CheckCircle size={10}/> Verified</span>
+                                            <span className="text-[10px] bg-[#3ACBE8]/10 text-[#3ACBE8] px-2 py-0.5 rounded font-bold border border-[#3ACBE8]/20 flex items-center gap-1 uppercase tracking-wider"><CheckCircle size={10}/> Verified GW{currentRealGameweek}</span>
                                         ) : (
-                                            <span className="text-[10px] bg-red-500/10 text-red-300 px-2 py-0.5 rounded font-bold border border-red-500/20 flex items-center gap-1 uppercase tracking-wider"><AlertTriangle size={10}/> Unsaved</span>
+                                            <span className="text-[10px] bg-red-500/10 text-red-300 px-2 py-0.5 rounded font-bold border border-red-500/20 flex items-center gap-1 uppercase tracking-wider"><AlertTriangle size={10}/> Unsaved for GW{currentRealGameweek}</span>
                                         )}
                                     </div>
                                 </div>
@@ -337,31 +397,37 @@ const App: React.FC = () => {
                                 </div>
                                 <div className="text-right">
                                     <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Team Value</div>
-                                    <div className="text-3xl font-black text-fpl-green flex items-center gap-1 justify-end">{currencySymbol}{totalValue.toFixed(1)}m</div>
+                                    <div className="text-3xl font-black text-[#3ACBE8] flex items-center gap-1 justify-end">{currencySymbol}{totalValue.toFixed(1)}m</div>
                                 </div>
                             </div>
                         </div>
 
                         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                             <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/5 shadow-inner">
-                                <button className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 transition"><ChevronLeft size={20}/></button>
+                                <button onClick={() => setViewGameweek(prev => prev - 1)} disabled={!canGoBack} className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition"><ChevronLeft size={20}/></button>
                                 <div className="text-center px-2">
                                     <div className="text-[10px] uppercase font-bold text-gray-400">Gameweek</div>
-                                    <div className="text-xl font-black leading-none">{gameweek}</div>
+                                    <div className="text-xl font-black leading-none">{viewGameweek}</div>
                                 </div>
-                                <button className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 transition"><ChevronRight size={20}/></button>
+                                <button onClick={() => setViewGameweek(prev => prev + 1)} disabled={!canGoForward} className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition"><ChevronRight size={20}/></button>
                             </div>
 
                             {!isEditMode && (
-                                <button
-                                    onClick={enterEditMode}
-                                    className="w-full md:w-auto px-8 py-3.5 bg-fpl-green text-[#0041C7] font-extrabold text-sm uppercase tracking-widest rounded-xl hover:bg-white hover:scale-105 transition-all shadow-lg shadow-fpl-green/20 flex items-center justify-center gap-2 group"
-                                >
-                                    <Users size={18} className="group-hover:rotate-6 transition-transform" /> Manage Team
-                                </button>
+                                viewGameweek === currentRealGameweek ? (
+                                    <button
+                                        onClick={enterEditMode}
+                                        className="w-full md:w-auto px-8 py-3.5 bg-[#3ACBE8] text-[#0041C7] font-extrabold text-sm uppercase tracking-widest rounded-xl hover:bg-white hover:scale-105 transition-all shadow-lg shadow-[#3ACBE8]/20 flex items-center justify-center gap-2 group"
+                                    >
+                                        <Users size={18} className="group-hover:rotate-6 transition-transform" /> Manage Team
+                                    </button>
+                                ) : (
+                                    <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase tracking-widest bg-white/5 px-4 py-3 rounded-xl border border-white/10">
+                                        <LockIcon size={16} /> Viewing History
+                                    </div>
+                                )
                             )}
                             {isEditMode && (
-                                <div className="flex items-center gap-2 text-fpl-green text-xs font-bold uppercase tracking-widest bg-fpl-green/10 px-4 py-3 rounded-xl border border-fpl-green/20 animate-pulse">
+                                <div className="flex items-center gap-2 text-[#3ACBE8] text-xs font-bold uppercase tracking-widest bg-[#3ACBE8]/10 px-4 py-3 rounded-xl border border-[#3ACBE8]/20 animate-pulse">
                                     <LayoutDashboard size={16} /> Transfer Market Open
                                 </div>
                             )}

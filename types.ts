@@ -40,6 +40,7 @@ export interface UserData {
   isSquadComplete?: boolean; // Validation flag
   formation?: string; // e.g. "1-2-1", "0-4-0"
   isSubmitted?: boolean;
+  lastGameweekSaved?: number;
 }
 
 export interface League {

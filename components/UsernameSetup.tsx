@@ -34,7 +34,6 @@ const UsernameSetup: React.FC<UsernameSetupProps> = ({ user, onComplete, initial
 
         setLoading(true);
 
-        // Check uniqueness
         const taken = await checkUsernameTaken(trimmed);
         if (taken) {
             setError("Username already taken.");
@@ -42,11 +41,10 @@ const UsernameSetup: React.FC<UsernameSetupProps> = ({ user, onComplete, initial
             return;
         }
 
-        // Save
         const newSettings = {
             ...initialSettings,
             username: trimmed,
-            nickname: trimmed, // Default nickname to username
+            nickname: trimmed,
             usernameLastChanged: Date.now()
         };
 
@@ -56,11 +54,10 @@ const UsernameSetup: React.FC<UsernameSetupProps> = ({ user, onComplete, initial
     };
 
     return (
-        <div className="fixed inset-0 bg-fpl-purple/95 z-[200] flex items-center justify-center p-4">
-            <div className="max-w-md w-full bg-[#29002d] border border-white/20 rounded-2xl shadow-2xl p-8 text-center relative overflow-hidden">
+        <div className="fixed inset-0 bg-[#0041C7]/95 z-[200] flex items-center justify-center p-4">
+            <div className="max-w-md w-full bg-[#0160C9] border border-white/20 rounded-2xl shadow-2xl p-8 text-center relative overflow-hidden">
 
-                {/* Background glow */}
-                <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-gradient-to-br from-fpl-green/10 to-fpl-blue/10 pointer-events-none rounded-full blur-3xl"></div>
+                <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-gradient-to-br from-[#3ACBE8]/10 to-[#1CA3DE]/10 pointer-events-none rounded-full blur-3xl"></div>
 
                 <div className="flex justify-center mb-6 relative z-10">
                     <div className="w-24 h-24 rounded-2xl flex items-center justify-center transform -rotate-3 shadow-2xl border-2 border-white/10 bg-black/20 overflow-hidden">
@@ -69,7 +66,7 @@ const UsernameSetup: React.FC<UsernameSetupProps> = ({ user, onComplete, initial
                 </div>
 
                 <h1 className="text-2xl font-bold text-white mb-2 relative z-10">Set your username</h1>
-                <p className="text-gray-400 mb-8 text-sm relative z-10">Choose a unique username to identify yourself in the league.</p>
+                <p className="text-gray-300 mb-8 text-sm relative z-10">Choose a unique username to identify yourself in the league.</p>
 
                 <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
                     <div>
@@ -78,17 +75,17 @@ const UsernameSetup: React.FC<UsernameSetupProps> = ({ user, onComplete, initial
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             placeholder="Enter username"
-                            className="w-full bg-black/30 border border-white/20 rounded-lg py-4 px-4 text-white text-center text-xl font-bold focus:outline-none focus:border-fpl-green focus:ring-1 focus:ring-fpl-green placeholder-gray-600 uppercase tracking-widest"
+                            className="w-full bg-black/30 border border-white/20 rounded-lg py-4 px-4 text-white text-center text-xl font-bold focus:outline-none focus:border-[#3ACBE8] focus:ring-1 focus:ring-[#3ACBE8] placeholder-gray-500 uppercase tracking-widest"
                             autoFocus
                         />
                     </div>
 
-                    {error && <div className="text-red-400 text-xs font-bold bg-red-500/10 py-2 rounded">{error}</div>}
+                    {error && <div className="text-red-300 text-xs font-bold bg-red-500/20 py-2 rounded">{error}</div>}
 
                     <button
                         type="submit"
                         disabled={loading || !username}
-                        className="w-full bg-fpl-green hover:bg-white text-fpl-purple font-bold py-4 px-6 rounded-lg transition-all shadow-lg shadow-fpl-green/20 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
+                        className="w-full bg-[#3ACBE8] hover:bg-white text-[#0041C7] font-bold py-4 px-6 rounded-lg transition-all shadow-lg shadow-[#3ACBE8]/20 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
                     >
                         {loading ? 'Checking...' : 'Confirm Username'}
                     </button>
