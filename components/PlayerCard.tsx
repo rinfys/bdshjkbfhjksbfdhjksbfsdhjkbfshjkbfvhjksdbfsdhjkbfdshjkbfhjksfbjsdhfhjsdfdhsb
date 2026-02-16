@@ -99,8 +99,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
   const cursorClass = isEditMode ? 'cursor-pointer hover:scale-105' : 'cursor-default';
 
-  // Mobile layout adjustment
-  // Use w-16 or w-20 on mobile, scale up on md
   const cardWidthClass = "w-[68px] md:w-28";
   const avatarSizeClass = "w-10 h-10 md:w-20 md:h-20";
 
@@ -150,8 +148,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
         {isEditMode && (
             <>
-              {/* Action Buttons - Moved for better mobile touch targets */}
-              <div className="absolute -top-3 -right-2 z-40 flex gap-1">
+              {/* MOBILE: Action Buttons - Better Touch Targets */}
+              <div className="md:hidden absolute -top-3 -right-2 z-40 flex gap-1">
                 <button
                     onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
                     className="bg-red-500 text-white rounded-full p-1 shadow border border-white w-5 h-5 flex items-center justify-center hover:scale-110"
@@ -159,9 +157,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                   <X size={10} strokeWidth={4} />
                 </button>
               </div>
-
-              {/* Captaincy Toggles - Bottom Overlay */}
-              <div className="absolute -bottom-2 z-40 flex gap-1 w-full justify-center">
+              {/* MOBILE: Captaincy - Bottom Overlay */}
+              <div className="md:hidden absolute -bottom-2 z-40 flex gap-1 w-full justify-center">
                 <button
                     onClick={(e) => { e.stopPropagation(); onMakeCaptain?.(); }}
                     className={`rounded-full w-5 h-5 flex items-center justify-center border shadow-sm ${isCaptain ? 'bg-black text-yellow-400 border-yellow-400' : 'bg-white text-gray-400 border-gray-300'}`}
@@ -174,6 +171,46 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                 >
                   <span className="font-bold text-[8px]">V</span>
                 </button>
+              </div>
+
+
+              {/* DESKTOP: Action Buttons - "Normal" Hover Style */}
+              <div className="hidden md:block">
+                {/* Top Left Remove */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
+                    className="absolute top-0 left-1 z-30 bg-red-500 text-white rounded-full p-1 shadow-lg border border-white hover:bg-red-600 hover:scale-110 transition opacity-0 group-hover:opacity-100"
+                    title="Remove Player"
+                >
+                  <X size={12} strokeWidth={3} />
+                </button>
+
+                {/* Top Right Replace */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); onReplace?.(); }}
+                    className="absolute top-0 right-1 z-30 bg-[#3ACBE8] text-[#0041C7] rounded-full p-1 shadow-lg border border-white/20 hover:bg-white hover:scale-110 transition opacity-0 group-hover:opacity-100"
+                    title="Replace Player"
+                >
+                  <ArrowRightLeft size={12} strokeWidth={3} />
+                </button>
+
+                {/* Bottom Captain Actions */}
+                <div className="absolute bottom-12 right-0 flex flex-col gap-1 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                      onClick={(e) => { e.stopPropagation(); onMakeCaptain?.(); }}
+                      className={`rounded-full p-1.5 shadow-lg border border-white/20 hover:scale-110 transition ${isCaptain ? 'bg-black text-yellow-400 border-yellow-400' : 'bg-gray-600 text-gray-300 hover:bg-black hover:text-yellow-400'}`}
+                      title="Make Captain"
+                  >
+                    <Crown size={12} strokeWidth={3} fill={isCaptain ? "currentColor" : "none"} />
+                  </button>
+                  <button
+                      onClick={(e) => { e.stopPropagation(); onMakeViceCaptain?.(); }}
+                      className={`rounded-full p-1.5 shadow-lg border border-white/20 hover:scale-110 transition ${isViceCaptain ? 'bg-gray-200 text-[#0041C7] border-[#0041C7]' : 'bg-gray-600 text-gray-300 hover:bg-white hover:text-[#0041C7]'}`}
+                      title="Make Vice-Captain"
+                  >
+                    <span className="font-bold text-[8px] leading-none">V</span>
+                  </button>
+                </div>
               </div>
             </>
         )}

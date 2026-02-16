@@ -55,7 +55,7 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
 
     const renderRow = (rowSlots: TeamSlot[]) => {
         if (rowSlots.length === 0) return null;
-        // Reduced gap for mobile compatibility
+        // Gap-1 on mobile, Gap-12 on Desktop (Restored normal look)
         return (
             <div className={`flex justify-center items-center w-full px-2 ${rowSlots.length === 1 ? 'gap-0' : 'gap-1 md:gap-12'}`}>
                 {rowSlots.map(slot => renderSlot(slot))}

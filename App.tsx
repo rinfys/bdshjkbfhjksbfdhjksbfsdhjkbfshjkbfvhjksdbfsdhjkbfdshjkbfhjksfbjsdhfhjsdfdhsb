@@ -312,12 +312,17 @@ const App: React.FC = () => {
             return acc + pts;
         }, 0);
 
-        await logLeaderboardEntry(currentRealGameweek, user.uid, {
-            points: pointTotal,
-            teamName: teamName,
-            username: settings.username,
-            avatar: logoUrl
-        });
+        // Try logging to leaderboard, but don't crash if permission denied
+        try {
+            await logLeaderboardEntry(currentRealGameweek, user.uid, {
+                points: pointTotal,
+                teamName: teamName,
+                username: settings.username,
+                avatar: logoUrl
+            });
+        } catch (e) {
+            console.warn("Leaderboard log failed (likely permission):", e);
+        }
 
         setNotification(`Squad Submitted! ${activeChip ? 'Chip Active!' : ''}`);
         setChips(updatedChips);
