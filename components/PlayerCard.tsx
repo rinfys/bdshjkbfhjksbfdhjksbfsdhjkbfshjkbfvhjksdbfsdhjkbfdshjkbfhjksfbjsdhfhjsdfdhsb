@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Player } from '../types';
-import { Plus, X, ArrowRightLeft, Crown, ShieldCheck } from 'lucide-react';
+import { Plus, X, ArrowRightLeft, Crown } from 'lucide-react';
 
 interface PlayerCardProps {
   player: Player | null;
@@ -34,7 +34,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
     const fetchRobloxAvatar = async () => {
       let userId = null;
-      // 1. Try internal API
       try {
         const r1 = await fetch("/api/roblox-usernames", {
           method: "POST",
@@ -45,7 +44,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         if (d1.data?.[0]?.id) userId = d1.data[0].id;
       } catch (e) { /* Fail silent */ }
 
-      // 2. Try proxy if internal fails
       if (!userId) {
         try {
           const proxy = "https://corsproxy.io/?";
@@ -62,7 +60,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
       if (!userId) return;
 
-      // 3. Fetch Thumbnail
       let thumb = null;
       try {
         const r3 = await fetch(`/api/robloxThumbnails?userIds=${userId}&size=150x150&format=Png&isCircular=true`);
@@ -102,28 +99,33 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
   const cursorClass = isEditMode ? 'cursor-pointer hover:scale-105' : 'cursor-default';
 
+  // Mobile layout adjustment
+  // Use w-16 or w-20 on mobile, scale up on md
+  const cardWidthClass = "w-[68px] md:w-28";
+  const avatarSizeClass = "w-10 h-10 md:w-20 md:h-20";
+
   if (!player) {
     return (
         <div
             onClick={isEditMode ? onClick : undefined}
-            className={`flex flex-col items-center justify-center group w-28 transition-all duration-300 ${cursorClass} ${!isEditMode && 'opacity-50 grayscale'}`}
+            className={`flex flex-col items-center justify-center group ${cardWidthClass} transition-all duration-300 ${cursorClass} ${!isEditMode && 'opacity-50 grayscale'}`}
         >
-          <div className={`w-16 h-16 md:w-20 md:h-20 flex items-center justify-center rounded-full border-2 mb-1 relative transition-all duration-500
+          <div className={`${avatarSizeClass} flex items-center justify-center rounded-full border-2 mb-1 relative transition-all duration-500
             ${isEditMode
               ? 'bg-[#3ACBE8]/10 border-[#3ACBE8] border-dashed animate-pulse group-hover:bg-[#3ACBE8]/30'
               : 'bg-white/5 border-white/20 border-dashed'
           }
         `}>
-            <Plus className={`transition-colors duration-300 ${isEditMode ? 'text-[#3ACBE8]' : 'text-white/30'}`} size={28} />
+            <Plus className={`transition-colors duration-300 ${isEditMode ? 'text-[#3ACBE8]' : 'text-white/30'}`} size={20} />
           </div>
 
-          <div className="w-full max-w-[90px] md:max-w-[100px]">
+          <div className="w-full">
             {isEditMode && (
-                <div className="bg-[#3ACBE8] text-[#0041C7] text-[9px] font-bold text-center py-0.5 rounded-t-sm uppercase tracking-wider">
-                  Add Player
+                <div className="bg-[#3ACBE8] text-[#0041C7] text-[8px] md:text-[9px] font-bold text-center py-0.5 rounded-t-sm uppercase tracking-wider truncate">
+                  Add
                 </div>
             )}
-            <div className="bg-black/40 backdrop-blur-sm text-white/50 text-[10px] font-bold text-center py-1 border border-white/10 rounded-b-sm">
+            <div className="bg-black/40 backdrop-blur-sm text-white/50 text-[8px] md:text-[10px] font-bold text-center py-1 border border-white/10 rounded-b-sm">
               {positionLabel}
             </div>
           </div>
@@ -131,7 +133,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
     );
   }
 
-  // Calculate Points Display
   let displayPoints = player.points;
   let pointMultiplier = 1;
   if (isCaptain) pointMultiplier = 2;
@@ -141,7 +142,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   return (
       <div
           onClick={isEditMode ? onClick : undefined}
-          className={`flex flex-col items-center justify-center relative group w-28 transition-all duration-300 ${cursorClass}`}
+          className={`flex flex-col items-center justify-center relative group ${cardWidthClass} transition-all duration-300 ${cursorClass}`}
       >
         {isSelected && (
             <div className="absolute inset-0 bg-[#3ACBE8]/40 rounded-full scale-110 animate-pulse z-0 blur-xl"></div>
@@ -149,90 +150,82 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
         {isEditMode && (
             <>
-              <button
-                  onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
-                  className="absolute top-0 left-2 z-30 bg-red-500 text-white rounded-full p-1 shadow-lg border border-white hover:bg-red-600 hover:scale-110 transition"
-                  title="Remove Player"
-              >
-                <X size={10} strokeWidth={3} />
-              </button>
+              {/* Action Buttons - Moved for better mobile touch targets */}
+              <div className="absolute -top-3 -right-2 z-40 flex gap-1">
+                <button
+                    onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
+                    className="bg-red-500 text-white rounded-full p-1 shadow border border-white w-5 h-5 flex items-center justify-center hover:scale-110"
+                >
+                  <X size={10} strokeWidth={4} />
+                </button>
+              </div>
 
-              <button
-                  onClick={(e) => { e.stopPropagation(); onReplace?.(); }}
-                  className="absolute top-0 right-2 z-30 bg-[#3ACBE8] text-[#0041C7] rounded-full p-1 shadow-lg border border-white/20 hover:bg-white hover:scale-110 transition"
-                  title="Replace Player"
-              >
-                <ArrowRightLeft size={10} strokeWidth={3} />
-              </button>
-
-              <div className="absolute bottom-12 -right-4 flex flex-col gap-1 z-30">
+              {/* Captaincy Toggles - Bottom Overlay */}
+              <div className="absolute -bottom-2 z-40 flex gap-1 w-full justify-center">
                 <button
                     onClick={(e) => { e.stopPropagation(); onMakeCaptain?.(); }}
-                    className={`rounded-full p-1.5 shadow-lg border border-white/20 hover:scale-110 transition ${isCaptain ? 'bg-black text-yellow-400 border-yellow-400' : 'bg-gray-600 text-gray-300 hover:bg-black hover:text-yellow-400'}`}
-                    title="Make Captain"
+                    className={`rounded-full w-5 h-5 flex items-center justify-center border shadow-sm ${isCaptain ? 'bg-black text-yellow-400 border-yellow-400' : 'bg-white text-gray-400 border-gray-300'}`}
                 >
-                  <Crown size={12} strokeWidth={3} fill={isCaptain ? "currentColor" : "none"} />
+                  <span className="font-bold text-[8px]">C</span>
                 </button>
                 <button
                     onClick={(e) => { e.stopPropagation(); onMakeViceCaptain?.(); }}
-                    className={`rounded-full p-1.5 shadow-lg border border-white/20 hover:scale-110 transition ${isViceCaptain ? 'bg-gray-200 text-[#0041C7] border-[#0041C7]' : 'bg-gray-600 text-gray-300 hover:bg-white hover:text-[#0041C7]'}`}
-                    title="Make Vice-Captain"
+                    className={`rounded-full w-5 h-5 flex items-center justify-center border shadow-sm ${isViceCaptain ? 'bg-black text-white border-white' : 'bg-white text-gray-400 border-gray-300'}`}
                 >
-                  <span className="font-bold text-[8px] leading-none">V</span>
+                  <span className="font-bold text-[8px]">V</span>
                 </button>
               </div>
             </>
         )}
 
-        {/* Captain Badges (Always Visible) */}
         {!isEditMode && (
             <>
               {isCaptain && (
-                  <div className={`absolute top-0 right-2 z-20 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold border shadow-md ${isTripleCaptain ? 'bg-black border-white animate-pulse' : 'bg-black border-yellow-400'}`}>
+                  <div className={`absolute top-0 right-1 md:right-2 z-20 text-white rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center text-[8px] md:text-[10px] font-bold border shadow-md ${isTripleCaptain ? 'bg-black border-white animate-pulse' : 'bg-black border-yellow-400'}`}>
                     {isTripleCaptain ? 'TC' : 'C'}
                   </div>
               )}
               {isViceCaptain && (
-                  <div className="absolute top-0 right-2 z-20 bg-gray-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold border border-gray-300 shadow-md">
+                  <div className="absolute top-0 right-1 md:right-2 z-20 bg-gray-500 text-white rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center text-[8px] md:text-[10px] font-bold border border-gray-300 shadow-md">
                     V
                   </div>
               )}
             </>
         )}
 
-        <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] overflow-hidden mb-1 relative shadow-lg transition-all duration-300 flex items-center justify-center z-10
+        <div className={`${avatarSizeClass} rounded-full border-[2px] md:border-[3px] overflow-hidden mb-1 relative shadow-lg transition-all duration-300 flex items-center justify-center z-10
             ${!avatarUrl ? getTeamBgColor(player.teamColor) : 'bg-black/40'} 
             ${isSelected ? 'border-[#3ACBE8] shadow-[0_0_20px_rgba(58,203,232,0.6)]' : (isEditMode ? 'border-[#3ACBE8] group-hover:shadow-[0_0_15px_rgba(58,203,232,0.5)]' : 'border-white/20')}
-            ${isCaptain ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-[#0041C7]' : ''}
-            ${isTripleCaptain ? 'ring-4 ring-white ring-offset-2 ring-offset-[#0041C7]' : ''}
+            ${isCaptain ? 'ring-2 ring-yellow-400 ring-offset-1 md:ring-offset-2 ring-offset-[#0041C7]' : ''}
+            ${isTripleCaptain ? 'ring-2 md:ring-4 ring-white ring-offset-1 md:ring-offset-2 ring-offset-[#0041C7]' : ''}
       `}>
           {avatarUrl ? (
               <img src={avatarUrl} alt={player.name} className="w-full h-full object-cover" />
           ) : (
-              <span className="text-white font-bold text-lg md:text-xl tracking-widest shadow-black drop-shadow-md">
+              <span className="text-white font-bold text-sm md:text-xl tracking-widest shadow-black drop-shadow-md">
                 {player.name.substring(0, 2).toUpperCase()}
             </span>
           )}
 
           {player.imageUrl && (
-              <div className="absolute bottom-0 right-0 w-5 h-5 md:w-6 md:h-6 rounded-full bg-white border border-black/10 flex items-center justify-center shadow-sm z-10 overflow-hidden">
+              <div className="absolute bottom-0 right-0 w-4 h-4 md:w-6 md:h-6 rounded-full bg-white border border-black/10 flex items-center justify-center shadow-sm z-10 overflow-hidden">
                 <img src={player.imageUrl} alt="Team" className="w-full h-full object-contain" />
               </div>
           )}
         </div>
 
-        <div className="w-full max-w-[90px] md:max-w-[100px] pointer-events-none relative z-10">
-          <div className={`text-white text-[10px] md:text-[11px] font-medium text-center py-0.5 truncate border-t-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-t-sm px-1 ${isSelected ? 'bg-[#3ACBE8] text-[#0041C7]' : 'bg-[#0160C9]'}`}>
+        <div className="w-full pointer-events-none relative z-10">
+          <div className={`text-white text-[8px] md:text-[11px] font-medium text-center py-0.5 truncate border-t-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-t-sm px-0.5 ${isSelected ? 'bg-[#3ACBE8] text-[#0041C7]' : 'bg-[#0160C9]'}`}>
             {player.name}
           </div>
-          <div className={`text-black text-[11px] md:text-[12px] font-bold text-center py-0.5 border-b-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-b-sm shadow-md flex justify-center items-center gap-1 transition-colors duration-300 ${isEditMode ? 'bg-[#3ACBE8] text-[#0041C7] border-[#3ACBE8]/50' : 'bg-white'}`}>
+          <div className={`text-black text-[9px] md:text-[12px] font-bold text-center py-0.5 border-b-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-b-sm shadow-md flex justify-center items-center gap-1 transition-colors duration-300 ${isEditMode ? 'bg-[#3ACBE8] text-[#0041C7] border-[#3ACBE8]/50' : 'bg-white'}`}>
             {isEditMode ? (
-                <span>£{player.price}m</span>
+                <span>£{player.price}</span>
             ) : (
                 <span>{displayPoints}</span>
             )}
           </div>
-          <div className={`text-[9px] md:text-[10px] text-white/80 text-center uppercase font-bold mt-0.5 tracking-wider rounded-sm ${isSelected ? 'bg-[#3ACBE8]/50 text-white' : 'bg-black/20'}`}>
+          <div className={`text-[8px] md:text-[10px] text-white/80 text-center uppercase font-bold mt-0.5 tracking-wider rounded-sm ${isSelected ? 'bg-[#3ACBE8]/50 text-white' : 'bg-black/20'}`}>
             {player.position}
           </div>
         </div>

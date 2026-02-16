@@ -36,7 +36,7 @@ const DEFAULT_CHIPS: UserChips = {
     benchBoost: { available: 1 },
     tripleCaptain: { available: 2 },
     freeHit: { available: 2 },
-    wildcard: { available: 1 } // Keeping generic just in case
+    wildcard: { available: 1 }
 };
 
 const App: React.FC = () => {
@@ -204,7 +204,7 @@ const App: React.FC = () => {
                 isSquadComplete: complete,
                 isSubmitted: false,
                 lastGameweekSaved: currentRealGameweek,
-                activeChip: activeChip // persist chip choice even if not submitted
+                activeChip: activeChip
             });
             setIsSubmitted(false);
         }
@@ -230,12 +230,6 @@ const App: React.FC = () => {
     };
 
     const handleChipToggle = (chipName: keyof UserChips) => {
-        if (!isEditMode) {
-            setNotification("Enable 'Manage Team' to activate chips!");
-            setTimeout(() => setNotification(null), 2000);
-            return;
-        }
-
         if (chips[chipName].available <= 0) {
             setNotification("You have used all available chips of this type.");
             setTimeout(() => setNotification(null), 2000);
@@ -260,23 +254,21 @@ const App: React.FC = () => {
             return;
         }
 
-        // Check Captains (Allow bench captain technically, but warn if no starter captain unless auto-sub logic exists)
-        // For simplicity, enforce 1 captain, 1 vice.
         const captain = slots.find(s => s.isCaptain);
         const vice = slots.find(s => s.isViceCaptain);
 
         if (!captain) {
-            setNotification("You must select a Captain!");
+            setNotification("Select a Captain (C)");
             setTimeout(() => setNotification(null), 3000);
             return;
         }
         if (!vice) {
-            setNotification("You must select a Vice-Captain!");
+            setNotification("Select a Vice-Captain (V)");
             setTimeout(() => setNotification(null), 3000);
             return;
         }
         if (captain.index === vice.index) {
-            setNotification("Captain and Vice-Captain cannot be the same player.");
+            setNotification("Captain & Vice-Captain cannot be same.");
             setTimeout(() => setNotification(null), 3000);
             return;
         }
@@ -327,8 +319,8 @@ const App: React.FC = () => {
             avatar: logoUrl
         });
 
-        setNotification(`Squad Submitted for GW${currentRealGameweek}! ${activeChip ? 'Chip Active!' : ''}`);
-        setChips(updatedChips); // Update local state
+        setNotification(`Squad Submitted! ${activeChip ? 'Chip Active!' : ''}`);
+        setChips(updatedChips);
         setTimeout(() => setNotification(null), 3000);
         setIsEditMode(false);
     };
@@ -341,8 +333,9 @@ const App: React.FC = () => {
             isCaptain: i === index,
             isViceCaptain: i === index ? false : s.isViceCaptain // clear VC if becoming C
         }));
+        setSlots(newSlots); // Optimistic update for UI
         persistTeam(newSlots);
-        setNotification(`Captain set to ${slots[index].player?.name}`);
+        setNotification(`Captain: ${slots[index].player?.name}`);
         setTimeout(() => setNotification(null), 1000);
     };
 
@@ -354,8 +347,9 @@ const App: React.FC = () => {
             isViceCaptain: i === index,
             isCaptain: i === index ? false : s.isCaptain // clear C if becoming VC
         }));
+        setSlots(newSlots); // Optimistic update
         persistTeam(newSlots);
-        setNotification(`Vice-Captain set to ${slots[index].player?.name}`);
+        setNotification(`Vice-Captain: ${slots[index].player?.name}`);
         setTimeout(() => setNotification(null), 1000);
     };
 
@@ -423,14 +417,10 @@ const App: React.FC = () => {
     // Live Point Calculation
     const currentPoints = slots.reduce((acc, slot) => {
         if (!slot.player) return acc;
-
-        // Bench Boost: Count bench points
         const isBench = slot.type === 'bench';
         if (isBench && activeChip !== 'benchBoost') return acc;
-
         let pts = slot.player.points;
         if (slot.isCaptain) pts *= (activeChip === 'tripleCaptain' ? 3 : 2);
-
         return acc + pts;
     }, 0);
 
@@ -451,7 +441,7 @@ const App: React.FC = () => {
             <button
                 onClick={() => handleChipToggle(id)}
                 disabled={isDisabled}
-                className={`relative overflow-hidden group rounded-xl p-3 flex flex-col items-center justify-center border transition-all duration-300 w-full
+                className={`relative overflow-hidden group rounded-xl p-2 md:p-3 flex flex-col items-center justify-center border transition-all duration-300 w-full min-h-[80px]
                     ${isActive
                     ? 'bg-gradient-to-b from-[#3ACBE8] to-[#1CA3DE] border-white shadow-[0_0_20px_rgba(58,203,232,0.5)] scale-105 z-10'
                     : isDisabled
@@ -461,13 +451,10 @@ const App: React.FC = () => {
                 `}
             >
                 {isActive && <div className="absolute top-1 right-2 w-2 h-2 bg-white rounded-full animate-ping"></div>}
-                <div className={`p-2 rounded-full mb-1 ${isActive ? 'bg-white text-[#0041C7]' : 'bg-[#0041C7] text-[#3ACBE8]'}`}>
-                    <Icon size={20} />
+                <div className={`p-1.5 md:p-2 rounded-full mb-1 ${isActive ? 'bg-white text-[#0041C7]' : 'bg-[#0041C7] text-[#3ACBE8]'}`}>
+                    <Icon size={16} className="md:w-5 md:h-5" />
                 </div>
-                <div className={`text-[10px] uppercase font-bold tracking-wider ${isActive ? 'text-[#0041C7]' : 'text-white'}`}>{label}</div>
-                <div className={`text-[9px] mt-1 px-2 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-[#0041C7]' : 'bg-white/10 text-gray-400'}`}>
-                    {isActive ? 'ACTIVE' : (available > 0 ? 'Play' : 'Used')}
-                </div>
+                <div className={`text-[8px] md:text-[10px] uppercase font-bold tracking-wider text-center leading-tight ${isActive ? 'text-[#0041C7]' : 'text-white'}`}>{label}</div>
             </button>
         );
     };
@@ -483,11 +470,12 @@ const App: React.FC = () => {
             <GuideOverlay active={showGuide} onComplete={finishGuide} teamName={teamName} logoUrl={logoUrl} onStepChange={handleGuideStepChange} />
             <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
 
+            {/* Notification Bar - High Z-Index for Mobile */}
             {notification && (
-                <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top-4 fade-in">
-                    <div className="bg-[#0D85D8] text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 font-bold border border-white/20">
+                <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[300] w-full px-4 md:w-auto animate-in slide-in-from-top-4 fade-in pointer-events-none">
+                    <div className="bg-[#0D85D8] text-white px-6 py-3 rounded-xl shadow-2xl flex items-center justify-center gap-3 font-bold border border-white/20 pointer-events-auto">
                         {notification.includes("Submitted") ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-                        {notification}
+                        <span className="text-center text-sm">{notification}</span>
                     </div>
                 </div>
             )}
@@ -503,12 +491,12 @@ const App: React.FC = () => {
                                 Budget: {currencySymbol}{remainingBudget.toFixed(1)}m
                             </div>
                         </div>
-                        <div className="flex gap-3">
-                            <button onClick={cancelEditMode} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold uppercase flex items-center gap-2 transition border border-white/5">
-                                <Undo2 size={16} /> Cancel
+                        <div className="flex gap-2 md:gap-3">
+                            <button onClick={cancelEditMode} className="px-3 py-2 md:px-5 md:py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold uppercase flex items-center gap-1 md:gap-2 transition border border-white/5">
+                                <Undo2 size={16} /> <span className="hidden md:inline">Cancel</span>
                             </button>
-                            <button onClick={handleSubmitSquad} className="px-6 py-2.5 bg-[#3ACBE8] hover:bg-white text-[#0041C7] font-extrabold rounded-xl text-xs uppercase flex items-center gap-2 transition shadow-lg shadow-[#3ACBE8]/30 transform hover:scale-105">
-                                <Save size={16} /> Submit & Save
+                            <button onClick={handleSubmitSquad} className="px-4 py-2 md:px-6 md:py-2.5 bg-[#3ACBE8] hover:bg-white text-[#0041C7] font-extrabold rounded-xl text-xs uppercase flex items-center gap-1 md:gap-2 transition shadow-lg shadow-[#3ACBE8]/30 transform hover:scale-105">
+                                <Save size={16} /> Submit
                             </button>
                         </div>
                     </div>
@@ -524,23 +512,25 @@ const App: React.FC = () => {
                 <Navbar currentView={currentPage} onNavigate={setCurrentPage} username={settings.username} profilePictureUrl={settings.profilePictureUrl} onLogout={logoutUser} onOpenSettings={() => setIsSettingsOpen(true)} />
             )}
 
-            <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8 relative z-10 flex flex-col gap-6">
+            <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-4 md:py-8 relative z-10 flex flex-col gap-6">
 
                 {currentPage === 'home' && (
                     <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full animate-in fade-in zoom-in-95 duration-500">
 
-                        {/* CHIPS BAR */}
-                        <div className="grid grid-cols-4 gap-2 md:gap-4 mb-2">
-                            <ChipButton id="benchBoost" label="Bench Boost" icon={ArrowUpCircle} available={chips.benchBoost.available} />
-                            <ChipButton id="tripleCaptain" label="Triple Captain" icon={Crown} available={chips.tripleCaptain.available} />
-                            <ChipButton id="wildcard" label="Wildcard" icon={Zap} available={chips.wildcard.available} />
-                            <ChipButton id="freeHit" label="Free Hit" icon={Shield} available={chips.freeHit.available} />
-                        </div>
+                        {/* CHIPS BAR - Only in Edit Mode */}
+                        {isEditMode && (
+                            <div className="grid grid-cols-4 gap-2 mb-2">
+                                <ChipButton id="benchBoost" label="Bench Boost" icon={ArrowUpCircle} available={chips.benchBoost.available} />
+                                <ChipButton id="tripleCaptain" label="Triple C." icon={Crown} available={chips.tripleCaptain.available} />
+                                <ChipButton id="wildcard" label="Wildcard" icon={Zap} available={chips.wildcard.available} />
+                                <ChipButton id="freeHit" label="Free Hit" icon={Shield} available={chips.freeHit.available} />
+                            </div>
+                        )}
 
-                        <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#0160C9] border-[#3ACBE8]/40 shadow-[0_0_30px_rgba(58,203,232,0.15)] scale-[1.01]' : `${cardBg}`}`}>
-                            <div className="flex items-center gap-6 w-full md:w-auto">
+                        <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-4 md:p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#0160C9] border-[#3ACBE8]/40 shadow-[0_0_30px_rgba(58,203,232,0.15)] scale-[1.01]' : `${cardBg}`}`}>
+                            <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto">
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                                <div onClick={handleLogoClick} className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 overflow-hidden shadow-lg relative group transition-all duration-300 ${isEditMode ? 'cursor-pointer border-[#3ACBE8] bg-[#3ACBE8]/10' : 'border-white/10 bg-white/5'}`}>
+                                <div onClick={handleLogoClick} className={`w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 overflow-hidden shadow-lg relative group transition-all duration-300 ${isEditMode ? 'cursor-pointer border-[#3ACBE8] bg-[#3ACBE8]/10' : 'border-white/10 bg-white/5'}`}>
                                     {logoUrl ? (
                                         <>
                                             <img src={logoUrl} className="w-full h-full object-cover" />
@@ -548,63 +538,58 @@ const App: React.FC = () => {
                                         </>
                                     ) : <Plus className="text-gray-400" />}
                                 </div>
-                                <div>
+                                <div className="flex-1">
                                     {isEditMode ? (
-                                        <input type="text" value={teamName} onChange={(e) => persistName(e.target.value)} className="bg-transparent text-2xl md:text-4xl font-black text-white border-b-2 border-[#3ACBE8]/50 focus:border-[#3ACBE8] outline-none w-full placeholder-white/30" placeholder="Team Name" />
+                                        <input type="text" value={teamName} onChange={(e) => persistName(e.target.value)} className="bg-transparent text-xl md:text-4xl font-black text-white border-b-2 border-[#3ACBE8]/50 focus:border-[#3ACBE8] outline-none w-full placeholder-white/30" placeholder="Team Name" />
                                     ) : (
-                                        <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight">{teamName}</h1>
+                                        <h1 className="text-xl md:text-4xl font-black text-white tracking-tight">{teamName}</h1>
                                     )}
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <span className="text-xs font-bold uppercase tracking-wider text-gray-300 opacity-70">Manager: {settings.username}</span>
+                                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-gray-300 opacity-70 truncate max-w-[150px]">{settings.username}</span>
                                         {isSubmitted ? (
-                                            <span className="text-[10px] bg-[#3ACBE8]/10 text-[#3ACBE8] px-2 py-0.5 rounded font-bold border border-[#3ACBE8]/20 flex items-center gap-1 uppercase tracking-wider"><CheckCircle size={10}/> Verified GW{currentRealGameweek}</span>
+                                            <span className="text-[10px] bg-[#3ACBE8]/10 text-[#3ACBE8] px-2 py-0.5 rounded font-bold border border-[#3ACBE8]/20 flex items-center gap-1 uppercase tracking-wider"><CheckCircle size={10}/> Verified</span>
                                         ) : (
-                                            <span className="text-[10px] bg-red-500/10 text-red-300 px-2 py-0.5 rounded font-bold border border-red-500/20 flex items-center gap-1 uppercase tracking-wider"><AlertTriangle size={10}/> Unsaved for GW{currentRealGameweek}</span>
+                                            <span className="text-[10px] bg-red-500/10 text-red-300 px-2 py-0.5 rounded font-bold border border-red-500/20 flex items-center gap-1 uppercase tracking-wider"><AlertTriangle size={10}/> Unsaved</span>
                                         )}
-                                        <button onClick={() => setIsRulesOpen(true)} className="ml-2 bg-white/10 hover:bg-white/20 p-1 rounded transition" title="Scoring Rules"><BookOpen size={12} className="text-white"/></button>
+                                        <button onClick={() => setIsRulesOpen(true)} className="ml-1 bg-white/10 hover:bg-white/20 p-1 rounded transition" title="Scoring Rules"><BookOpen size={12} className="text-white"/></button>
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex gap-8">
-                                <div className="text-right">
-                                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">GW{currentRealGameweek} Points</div>
-                                    <div className={`text-3xl font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{currentPoints}</div>
+                            <div className="flex gap-4 md:gap-8 justify-between w-full md:w-auto mt-2 md:mt-0">
+                                <div className="text-left md:text-right">
+                                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">GW{currentRealGameweek}</div>
+                                    <div className={`text-2xl md:text-3xl font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{currentPoints}</div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Team Value</div>
-                                    <div className="text-3xl font-black text-[#3ACBE8] flex items-center gap-1 justify-end">{currencySymbol}{totalValue.toFixed(1)}m</div>
+                                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Value</div>
+                                    <div className="text-2xl md:text-3xl font-black text-[#3ACBE8] flex items-center gap-1 justify-end">{currencySymbol}{totalValue.toFixed(1)}m</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                            <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/5 shadow-inner">
-                                <button onClick={() => setViewGameweek(prev => prev - 1)} disabled={!canGoBack} className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition"><ChevronLeft size={20}/></button>
+                        <div className="flex gap-4 items-center justify-between">
+                            <div className="flex items-center gap-2 md:gap-4 bg-white/5 p-1 md:p-2 rounded-xl border border-white/5 shadow-inner">
+                                <button onClick={() => setViewGameweek(prev => prev - 1)} disabled={!canGoBack} className="p-1.5 md:p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition"><ChevronLeft size={16}/></button>
                                 <div className="text-center px-2">
-                                    <div className="text-[10px] uppercase font-bold text-gray-400">Gameweek</div>
-                                    <div className="text-xl font-black leading-none">{viewGameweek}</div>
+                                    <div className="text-[9px] md:text-[10px] uppercase font-bold text-gray-400">GW</div>
+                                    <div className="text-lg md:text-xl font-black leading-none">{viewGameweek}</div>
                                 </div>
-                                <button onClick={() => setViewGameweek(prev => prev + 1)} disabled={!canGoForward} className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition"><ChevronRight size={20}/></button>
+                                <button onClick={() => setViewGameweek(prev => prev + 1)} disabled={!canGoForward} className="p-1.5 md:p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition"><ChevronRight size={16}/></button>
                             </div>
 
                             {!isEditMode && (
                                 viewGameweek === currentRealGameweek ? (
                                     <button
                                         onClick={enterEditMode}
-                                        className="w-full md:w-auto px-8 py-3.5 bg-[#3ACBE8] text-[#0041C7] font-extrabold text-sm uppercase tracking-widest rounded-xl hover:bg-white hover:scale-105 transition-all shadow-lg shadow-[#3ACBE8]/20 flex items-center justify-center gap-2 group"
+                                        className="w-full md:w-auto px-6 py-3 bg-[#3ACBE8] text-[#0041C7] font-extrabold text-xs md:text-sm uppercase tracking-widest rounded-xl hover:bg-white hover:scale-105 transition-all shadow-lg shadow-[#3ACBE8]/20 flex items-center justify-center gap-2 group"
                                     >
-                                        <Users size={18} className="group-hover:rotate-6 transition-transform" /> Manage Team
+                                        <Users size={16} className="group-hover:rotate-6 transition-transform" /> Manage Team
                                     </button>
                                 ) : (
                                     <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase tracking-widest bg-white/5 px-4 py-3 rounded-xl border border-white/10">
-                                        <LockIcon size={16} /> Viewing History
+                                        <LockIcon size={16} /> History
                                     </div>
                                 )
-                            )}
-                            {isEditMode && (
-                                <div className="flex items-center gap-2 text-[#3ACBE8] text-xs font-bold uppercase tracking-widest bg-[#3ACBE8]/10 px-4 py-3 rounded-xl border border-[#3ACBE8]/20 animate-pulse">
-                                    <LayoutDashboard size={16} /> Transfer Market Open
-                                </div>
                             )}
                         </div>
 

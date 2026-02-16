@@ -55,8 +55,9 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
 
     const renderRow = (rowSlots: TeamSlot[]) => {
         if (rowSlots.length === 0) return null;
+        // Reduced gap for mobile compatibility
         return (
-            <div className={`flex justify-center items-center w-full px-4 ${rowSlots.length === 1 ? 'gap-0' : 'gap-4 md:gap-12'}`}>
+            <div className={`flex justify-center items-center w-full px-2 ${rowSlots.length === 1 ? 'gap-0' : 'gap-1 md:gap-12'}`}>
                 {rowSlots.map(slot => renderSlot(slot))}
             </div>
         );
@@ -64,7 +65,7 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
 
     return (
         <div className="w-full flex flex-col transition-all duration-700">
-            <div className={`relative w-full aspect-[4/3] overflow-hidden rounded-t-xl transition-all duration-700 ${pitchContainerClass}`}>
+            <div className={`relative w-full aspect-[4/3] md:aspect-[16/9] overflow-hidden rounded-t-xl transition-all duration-700 ${pitchContainerClass}`}>
 
                 <div className="absolute inset-0 pointer-events-none transition-all duration-700">
                     {isEditMode ? (
@@ -84,7 +85,7 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
                     )}
                 </div>
 
-                <div className="absolute inset-0 flex flex-col py-6 pt-10 pb-6 z-10">
+                <div className="absolute inset-0 flex flex-col py-2 md:py-6 z-10">
                     <div className="flex-1 flex items-start pt-2 justify-center">
                         {renderSlot(gkSlot)}
                     </div>
@@ -94,8 +95,8 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
                 </div>
             </div>
 
-            <div className={`rounded-b-xl border-x-2 border-b-2 p-4 mt-[-4px] z-10 relative shadow-inner transition-all duration-700 ${isEditMode ? 'bg-[#29002d] border-fpl-pink/50' : 'bg-gradient-to-b from-[#005f86] to-[#004f70] border-white/10'}`}>
-                <div className={`flex justify-center gap-8 px-4 rounded-lg py-4 backdrop-blur-sm min-h-[100px] items-center transition-colors duration-700 ${isEditMode ? 'bg-fpl-pink/5 border border-fpl-pink/20' : 'bg-black/20'}`}>
+            <div className={`rounded-b-xl border-x-2 border-b-2 p-2 md:p-4 mt-[-4px] z-10 relative shadow-inner transition-all duration-700 ${isEditMode ? 'bg-[#29002d] border-fpl-pink/50' : 'bg-gradient-to-b from-[#005f86] to-[#004f70] border-white/10'}`}>
+                <div className={`flex justify-center gap-2 md:gap-8 px-2 md:px-4 rounded-lg py-4 backdrop-blur-sm min-h-[80px] md:min-h-[100px] items-center transition-colors duration-700 ${isEditMode ? 'bg-fpl-pink/5 border border-fpl-pink/20' : 'bg-black/20'}`}>
                     {[5,6,7].map(i => renderSlot(slots[i]))}
                 </div>
             </div>
