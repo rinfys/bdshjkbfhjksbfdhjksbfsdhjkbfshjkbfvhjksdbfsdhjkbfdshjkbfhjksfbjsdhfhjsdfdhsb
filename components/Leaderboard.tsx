@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Player } from '../types';
-import { fetchAllUsers } from '../firebase';
+import { fetchAllUsers, fetchGameweekLeaderboard } from '../firebase';
 import { Trophy, Medal, User as UserIcon, Calendar, Hash, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface LeaderboardProps {
     players: Player[];
     currentUserUid?: string;
+    currentGameweek?: number;
 }
 
 type LeaderboardType = 'weekly' | 'alltime';
@@ -20,7 +21,7 @@ interface LeaderboardEntry {
     isSubmitted: boolean;
 }
 
-const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) => {
+const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid, currentGameweek = 2 }) => {
     const [view, setView] = useState<LeaderboardType>('weekly');
     const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -28,42 +29,56 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
     useEffect(() => {
         const loadLeaderboard = async () => {
             setLoading(true);
+
+            // 1. Fetch Explicitly Submitted Teams for this GW
+            // This reads from 'rwafantasy/leaderboards/gw{currentGameweek}'
+            const submittedData = await fetchGameweekLeaderboard(currentGameweek);
+
+            // 2. Fetch All Users (for All-Time history and to fill gaps if needed)
             const allUsers = await fetchAllUsers();
 
-            const calculatedEntries = allUsers.map(user => {
-                const startingSlots = user.slots?.filter(s => s.type === 'starter' && s.player) || [];
+            // Create a Map for fast lookup of submitted entries
+            const submittedMap = new Map();
+            submittedData.forEach((entry: any) => {
+                submittedMap.set(entry.uid, entry);
+            });
 
-                // Calculate LIVE points for the current team (Weekly)
-                // In a real app with historical data, this would fetch specific GW stats.
-                const liveGwPoints = startingSlots.reduce((acc, slot) => {
-                    if (!slot.player) return acc;
-                    const livePlayer = players.find(p => p.id === slot.player!.id);
-                    return acc + (livePlayer?.points || slot.player.points || 0);
-                }, 0);
+            const mergedEntries = allUsers.map(user => {
+                const submittedEntry = submittedMap.get(user.uid);
+
+                // If the user submitted, use the frozen point value from the leaderboard.
+                // If not, their GW points are 0 in the context of the official leaderboard.
+                const gwPoints = submittedEntry ? submittedEntry.points : 0;
 
                 const history = user.settings?.totalHistoryPoints || 0;
-                // Total Points = History (Banked) + Current Live
-                const total = history + liveGwPoints;
 
                 return {
                     uid: user.uid || '',
                     username: user.settings?.username || 'Unknown',
                     teamName: user.teamName || 'Unnamed Team',
                     avatar: user.logoUrl || 'https://i.imgur.com/AZYKczg.png',
-                    gwPoints: liveGwPoints,
-                    totalPoints: total,
-                    isSubmitted: !!user.isSubmitted
+                    gwPoints: gwPoints,
+                    totalPoints: history + gwPoints,
+                    isSubmitted: !!submittedEntry // Strictly true only if in DB snapshot
                 };
             });
 
-            setEntries(calculatedEntries);
+            setEntries(mergedEntries);
             setLoading(false);
         };
 
         loadLeaderboard();
-    }, [players]);
+    }, [players, currentGameweek]);
 
-    const sortedEntries = [...entries].sort((a, b) => {
+    // Filter Logic:
+    // Weekly View: Show ONLY those who have submitted (isSubmitted === true).
+    // All Time View: Show everyone.
+    const displayEntries = entries.filter(e => {
+        if (view === 'weekly') return e.isSubmitted;
+        return true;
+    });
+
+    const sortedEntries = [...displayEntries].sort((a, b) => {
         if (view === 'weekly') return b.gwPoints - a.gwPoints;
         return b.totalPoints - a.totalPoints;
     });
@@ -82,7 +97,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                     <Trophy size={40} className="text-[#3ACBE8]" />
                 </div>
                 <h2 className="text-4xl font-extrabold text-white mb-2 tracking-tight">Manager Standings</h2>
-                <p className="text-gray-300 text-base max-w-lg">Live rankings of all managers in the RWA Fantasy League.</p>
+                <p className="text-gray-300 text-base max-w-lg">
+                    {view === 'weekly'
+                        ? `Official rankings for Gameweek ${currentGameweek}. Only submitted teams are shown.`
+                        : "All-time rankings of all registered managers."}
+                </p>
             </div>
 
             <div className="flex justify-center mb-8">
@@ -121,14 +140,15 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                             <tr>
                                 <td colSpan={3} className="p-12 text-center text-gray-300 flex flex-col items-center justify-center gap-4">
                                     <div className="w-8 h-8 border-4 border-white/10 border-t-[#3ACBE8] rounded-full animate-spin"></div>
-                                    <span>Calculating points...</span>
+                                    <span>Loading standings...</span>
                                 </td>
                             </tr>
                         ) : sortedEntries.length === 0 ? (
                             <tr>
                                 <td colSpan={3} className="p-12 text-center text-gray-300">
-                                    No active managers found.<br/>
-                                    <span className="text-xs opacity-50">Create a team to be the first!</span>
+                                    {view === 'weekly'
+                                        ? `No teams have submitted for Gameweek ${currentGameweek} yet.`
+                                        : "No active managers found."}
                                 </td>
                             </tr>
                         ) : (
@@ -150,13 +170,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                                                 <div>
                                                     <div className={`font-bold text-base mb-0.5 flex items-center gap-2 ${isMe ? 'text-[#3ACBE8]' : 'text-white'}`}>
                                                         {entry.teamName}
-                                                        {entry.isSubmitted ? (
+                                                        {entry.isSubmitted && view === 'alltime' && (
                                                             <div className="bg-[#1CA3DE]/20 rounded-full p-0.5" title="Squad Submitted">
                                                                 <CheckCircle size={12} className="text-[#1CA3DE]" />
-                                                            </div>
-                                                        ) : (
-                                                            <div className="bg-yellow-500/20 rounded-full p-0.5" title="Not Submitted">
-                                                                <AlertCircle size={12} className="text-yellow-500" />
                                                             </div>
                                                         )}
                                                     </div>

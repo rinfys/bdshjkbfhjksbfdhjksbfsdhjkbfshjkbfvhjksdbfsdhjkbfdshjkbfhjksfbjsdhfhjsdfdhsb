@@ -618,7 +618,7 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                {currentPage === 'leaderboards' && <div className="flex justify-center"><Leaderboard players={dbPlayers} currentUserUid={user.uid} /></div>}
+                {currentPage === 'leaderboards' && <div className="flex justify-center"><Leaderboard players={dbPlayers} currentUserUid={user.uid} currentGameweek={currentRealGameweek} /></div>}
                 {currentPage === 'about' && <About />}
                 {currentPage === 'contact' && <Contact />}
 
