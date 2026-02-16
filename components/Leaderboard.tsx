@@ -32,38 +32,56 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid, curr
 
             // 1. Fetch Explicitly Submitted Teams for this GW
             // This reads from 'rwafantasy/leaderboards/gw{currentGameweek}'
+            // This contains the snapshot of the team at the moment of submission/update
             const submittedData = await fetchGameweekLeaderboard(currentGameweek);
 
-            // 2. Fetch All Users (for All-Time history and to fill gaps if needed)
+            // 2. Fetch All Users (Best Effort)
+            // If permission denied, this returns [], but we shouldn't block the weekly view
             const allUsers = await fetchAllUsers();
 
-            // Create a Map for fast lookup of submitted entries
-            const submittedMap = new Map();
+            // Map for quick lookup of full user details (history, etc)
+            const userMap = new Map();
+            allUsers.forEach(u => userMap.set(u.uid, u));
+
+            const results: LeaderboardEntry[] = [];
+            const processedUids = new Set<string>();
+
+            // Process Submitted Teams First
             submittedData.forEach((entry: any) => {
-                submittedMap.set(entry.uid, entry);
+                processedUids.add(entry.uid);
+
+                // Try to get live user data, otherwise fall back to snapshot data
+                const liveUser = userMap.get(entry.uid);
+
+                results.push({
+                    uid: entry.uid,
+                    username: entry.username || liveUser?.settings?.username || 'Unknown',
+                    teamName: entry.teamName || liveUser?.teamName || 'Unnamed Team',
+                    avatar: entry.avatar || liveUser?.logoUrl || 'https://i.imgur.com/AZYKczg.png',
+                    gwPoints: entry.points || 0,
+                    // If we can't read all users, we might not know total history points, default to GW points
+                    totalPoints: (liveUser?.settings?.totalHistoryPoints || 0) + (entry.points || 0),
+                    isSubmitted: true
+                });
             });
 
-            const mergedEntries = allUsers.map(user => {
-                const submittedEntry = submittedMap.get(user.uid);
-
-                // If the user submitted, use the frozen point value from the leaderboard.
-                // If not, their GW points are 0 in the context of the official leaderboard.
-                const gwPoints = submittedEntry ? submittedEntry.points : 0;
-
-                const history = user.settings?.totalHistoryPoints || 0;
-
-                return {
-                    uid: user.uid || '',
-                    username: user.settings?.username || 'Unknown',
-                    teamName: user.teamName || 'Unnamed Team',
-                    avatar: user.logoUrl || 'https://i.imgur.com/AZYKczg.png',
-                    gwPoints: gwPoints,
-                    totalPoints: history + gwPoints,
-                    isSubmitted: !!submittedEntry // Strictly true only if in DB snapshot
-                };
+            // Process Remaining Users (for All Time view)
+            // Only possible if fetchAllUsers succeeded
+            allUsers.forEach(user => {
+                if (!processedUids.has(user.uid || '')) {
+                    results.push({
+                        uid: user.uid || '',
+                        username: user.settings?.username || 'Unknown',
+                        teamName: user.teamName || 'Unnamed Team',
+                        avatar: user.logoUrl || 'https://i.imgur.com/AZYKczg.png',
+                        gwPoints: 0,
+                        totalPoints: user.settings?.totalHistoryPoints || 0,
+                        isSubmitted: false
+                    });
+                }
             });
 
-            setEntries(mergedEntries);
+            setEntries(results);
             setLoading(false);
         };
 
