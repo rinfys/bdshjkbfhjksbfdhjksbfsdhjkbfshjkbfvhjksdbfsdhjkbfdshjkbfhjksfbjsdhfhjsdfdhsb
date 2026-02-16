@@ -55,9 +55,9 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
 
     const renderRow = (rowSlots: TeamSlot[]) => {
         if (rowSlots.length === 0) return null;
-        // Gap-1 on mobile, Gap-12 on Desktop (Restored normal look)
+        // Gap-1 on mobile for tightness, Gap-16 on Desktop for spacious "normal" look
         return (
-            <div className={`flex justify-center items-center w-full px-2 ${rowSlots.length === 1 ? 'gap-0' : 'gap-1 md:gap-12'}`}>
+            <div className={`flex justify-center items-center w-full px-2 ${rowSlots.length === 1 ? 'gap-0' : 'gap-1 md:gap-16'}`}>
                 {rowSlots.map(slot => renderSlot(slot))}
             </div>
         );
@@ -65,7 +65,8 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
 
     return (
         <div className="w-full flex flex-col transition-all duration-700">
-            <div className={`relative w-full aspect-[4/3] md:aspect-[16/9] overflow-hidden rounded-t-xl transition-all duration-700 ${pitchContainerClass}`}>
+            {/* Increased Aspect Ratio on MD to [16/11] for taller pitch, closer to 'normal' feel */}
+            <div className={`relative w-full aspect-[4/3] md:aspect-[16/11] overflow-hidden rounded-t-xl transition-all duration-700 ${pitchContainerClass}`}>
 
                 <div className="absolute inset-0 pointer-events-none transition-all duration-700">
                     {isEditMode ? (
@@ -85,7 +86,7 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
                     )}
                 </div>
 
-                <div className="absolute inset-0 flex flex-col py-2 md:py-6 z-10">
+                <div className="absolute inset-0 flex flex-col py-2 md:py-8 z-10">
                     <div className="flex-1 flex items-start pt-2 justify-center">
                         {renderSlot(gkSlot)}
                     </div>
@@ -95,8 +96,8 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
                 </div>
             </div>
 
-            <div className={`rounded-b-xl border-x-2 border-b-2 p-2 md:p-4 mt-[-4px] z-10 relative shadow-inner transition-all duration-700 ${isEditMode ? 'bg-[#29002d] border-fpl-pink/50' : 'bg-gradient-to-b from-[#005f86] to-[#004f70] border-white/10'}`}>
-                <div className={`flex justify-center gap-2 md:gap-8 px-2 md:px-4 rounded-lg py-4 backdrop-blur-sm min-h-[80px] md:min-h-[100px] items-center transition-colors duration-700 ${isEditMode ? 'bg-fpl-pink/5 border border-fpl-pink/20' : 'bg-black/20'}`}>
+            <div className={`rounded-b-xl border-x-2 border-b-2 p-2 md:p-6 mt-[-4px] z-10 relative shadow-inner transition-all duration-700 ${isEditMode ? 'bg-[#29002d] border-fpl-pink/50' : 'bg-gradient-to-b from-[#005f86] to-[#004f70] border-white/10'}`}>
+                <div className={`flex justify-center gap-2 md:gap-12 px-2 md:px-8 rounded-lg py-4 backdrop-blur-sm min-h-[80px] md:min-h-[120px] items-center transition-colors duration-700 ${isEditMode ? 'bg-fpl-pink/5 border border-fpl-pink/20' : 'bg-black/20'}`}>
                     {[5,6,7].map(i => renderSlot(slots[i]))}
                 </div>
             </div>
