@@ -18,7 +18,20 @@ export interface TeamSlot {
   position: 'GK' | 'CD' | 'LW' | 'RW' | 'HS' | 'C' | 'OUTFIELD';
   type: 'starter' | 'bench';
   player: Player | null;
-  isCaptain?: boolean; // Track captaincy on the slot level for persistence
+  isCaptain?: boolean;
+  isViceCaptain?: boolean;
+}
+
+export interface ChipStatus {
+  available: number;
+  usedInGw?: number[];
+}
+
+export interface UserChips {
+  benchBoost: ChipStatus;
+  tripleCaptain: ChipStatus;
+  freeHit: ChipStatus;
+  wildcard: ChipStatus;
 }
 
 export interface UserSettings {
@@ -38,11 +51,12 @@ export interface UserData {
   teamName: string;
   logoUrl: string;
   slots: TeamSlot[];
+  chips?: UserChips;
+  activeChip?: string | null; // 'benchBoost', 'tripleCaptain', etc. for current GW
   isSquadComplete?: boolean;
   formation?: string;
   isSubmitted?: boolean;
   lastGameweekSaved?: number;
-  // Map of gameweek ID to points scored
   history?: Record<string, number>;
 }
 

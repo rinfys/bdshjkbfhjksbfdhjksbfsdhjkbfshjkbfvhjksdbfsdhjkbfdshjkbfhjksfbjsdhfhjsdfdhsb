@@ -13,8 +13,8 @@ import GuideOverlay from './components/GuideOverlay';
 import RulesModal from './components/RulesModal';
 
 import { INITIAL_TEAM_SLOTS, GAMEWEEK_SCHEDULE } from './constants';
-import { ChevronLeft, ChevronRight, Edit2, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard, Lock as LockIcon, BookOpen } from 'lucide-react';
-import { Player, TeamSlot, UserSettings } from './types';
+import { ChevronLeft, ChevronRight, Edit2, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard, Lock as LockIcon, BookOpen, Crown, Zap, Shield, ArrowUpCircle } from 'lucide-react';
+import { Player, TeamSlot, UserSettings, UserChips } from './types';
 import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA, logLeaderboardEntry } from './firebase';
 import { User } from 'firebase/auth';
 
@@ -30,6 +30,13 @@ const DEFAULT_SETTINGS: UserSettings = {
     totalHistoryPoints: 0,
     profilePictureUrl: '',
     tutorialCompleted: false
+};
+
+const DEFAULT_CHIPS: UserChips = {
+    benchBoost: { available: 1 },
+    tripleCaptain: { available: 2 },
+    freeHit: { available: 2 },
+    wildcard: { available: 1 } // Keeping generic just in case
 };
 
 const App: React.FC = () => {
@@ -51,6 +58,10 @@ const App: React.FC = () => {
     const [slots, setSlots] = useState<TeamSlot[]>(INITIAL_TEAM_SLOTS);
     const [isSquadComplete, setIsSquadComplete] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
+
+    // Chips
+    const [chips, setChips] = useState<UserChips>(DEFAULT_CHIPS);
+    const [activeChip, setActiveChip] = useState<string | null>(null);
 
     // Edit Mode
     const [isEditMode, setIsEditMode] = useState(false);
@@ -97,7 +108,7 @@ const App: React.FC = () => {
         return () => { unsubscribeAuth(); clearTimeout(safetyTimer); };
     }, []);
 
-    // Sync User Data & Handle Gameweek Transitions
+    // Sync User Data
     useEffect(() => {
         if (!user) { setUserDataLoading(false); return; }
         setUserDataLoading(true);
@@ -105,16 +116,16 @@ const App: React.FC = () => {
             if (data) {
                 if (data.teamName) setTeamName(data.teamName);
                 setLogoUrl(data.logoUrl || "");
+                setChips(data.chips || DEFAULT_CHIPS);
 
-                // GAMEWEEK TRANSITION CHECK
-                // If last saved GW < Current Real GW, we need to snapshot the previous week
+                // GW Reset Logic
                 if (data.lastGameweekSaved && data.lastGameweekSaved < currentRealGameweek) {
                     setIsSubmitted(false);
+                    setActiveChip(null); // Reset active chip for new week
                     setNotification(`Welcome to Gameweek ${currentRealGameweek}! Review your team.`);
-                    // NOTE: In a real app with backend, the backend would handle snapshotting at deadline.
-                    // Here, we just acknowledge the new week and reset submission status.
                 } else {
                     setIsSubmitted(!!data.isSubmitted);
+                    setActiveChip(data.activeChip || null);
                 }
 
                 if (data.settings) {
@@ -146,7 +157,8 @@ const App: React.FC = () => {
                     settings: { ...DEFAULT_SETTINGS, username: '' },
                     isSquadComplete: false,
                     isSubmitted: false,
-                    lastGameweekSaved: currentRealGameweek
+                    lastGameweekSaved: currentRealGameweek,
+                    chips: DEFAULT_CHIPS
                 };
                 saveUserTeam(user.uid, initialData);
                 setSettings(initialData.settings);
@@ -191,7 +203,8 @@ const App: React.FC = () => {
                 slots: newSlots,
                 isSquadComplete: complete,
                 isSubmitted: false,
-                lastGameweekSaved: currentRealGameweek
+                lastGameweekSaved: currentRealGameweek,
+                activeChip: activeChip // persist chip choice even if not submitted
             });
             setIsSubmitted(false);
         }
@@ -216,45 +229,106 @@ const App: React.FC = () => {
         if (user) saveUserTeam(user.uid, { slots: backupSlots });
     };
 
+    const handleChipToggle = (chipName: keyof UserChips) => {
+        if (!isEditMode) {
+            setNotification("Enable 'Manage Team' to activate chips!");
+            setTimeout(() => setNotification(null), 2000);
+            return;
+        }
+
+        if (chips[chipName].available <= 0) {
+            setNotification("You have used all available chips of this type.");
+            setTimeout(() => setNotification(null), 2000);
+            return;
+        }
+
+        if (activeChip === chipName) {
+            setActiveChip(null); // Deselect
+        } else {
+            setActiveChip(chipName); // Select
+        }
+    };
+
     const handleSubmitSquad = async () => {
         if (!user) return;
+
+        // Validation
         const starters = slots.filter(s => s.type === 'starter');
         if (!starters.every(s => s.player !== null)) {
             setNotification("Fill your starting lineup first!");
             setTimeout(() => setNotification(null), 3000);
             return;
         }
-        // Ensure captain selected
-        if (!slots.some(s => s.isCaptain && s.type === 'starter')) {
+
+        // Check Captains (Allow bench captain technically, but warn if no starter captain unless auto-sub logic exists)
+        // For simplicity, enforce 1 captain, 1 vice.
+        const captain = slots.find(s => s.isCaptain);
+        const vice = slots.find(s => s.isViceCaptain);
+
+        if (!captain) {
             setNotification("You must select a Captain!");
             setTimeout(() => setNotification(null), 3000);
             return;
+        }
+        if (!vice) {
+            setNotification("You must select a Vice-Captain!");
+            setTimeout(() => setNotification(null), 3000);
+            return;
+        }
+        if (captain.index === vice.index) {
+            setNotification("Captain and Vice-Captain cannot be the same player.");
+            setTimeout(() => setNotification(null), 3000);
+            return;
+        }
+
+        // Chip Consumption Logic
+        let updatedChips = { ...chips };
+        if (activeChip) {
+            const key = activeChip as keyof UserChips;
+            // Decrement
+            updatedChips[key] = {
+                ...updatedChips[key],
+                available: updatedChips[key].available - 1,
+                usedInGw: [...(updatedChips[key].usedInGw || []), currentRealGameweek]
+            };
         }
 
         setIsSubmitted(true);
         await saveUserTeam(user.uid, {
             isSubmitted: true,
             slots: slots,
-            lastGameweekSaved: currentRealGameweek
+            lastGameweekSaved: currentRealGameweek,
+            activeChip: activeChip,
+            chips: updatedChips
         });
 
-        // CALCULATE POINTS SNAPSHOT FOR LOGGING
-        // Note: For live leaderboard, we usually just let it read current data.
-        // But the prompt asked to "log" it. So we write to the dedicated collection.
-        const currentPoints = slots.filter(s => s.type === 'starter' && s.player).reduce((acc, slot) => {
-            let pts = slot.player?.points || 0;
-            if (slot.isCaptain) pts *= 2;
+        // CALCULATE POINTS SNAPSHOT
+        const pointTotal = slots.reduce((acc, slot) => {
+            if (!slot.player) return acc;
+
+            // Bench Boost Logic: Count Bench
+            const isBench = slot.type === 'bench';
+            if (isBench && activeChip !== 'benchBoost') return acc; // Skip bench if no boost
+
+            let pts = slot.player.points;
+
+            // Triple Captain Logic
+            if (slot.isCaptain) {
+                pts *= (activeChip === 'tripleCaptain' ? 3 : 2);
+            }
+
             return acc + pts;
         }, 0);
 
         await logLeaderboardEntry(currentRealGameweek, user.uid, {
-            points: currentPoints,
+            points: pointTotal,
             teamName: teamName,
             username: settings.username,
             avatar: logoUrl
         });
 
-        setNotification(`Squad Submitted for GW${currentRealGameweek}! Points logged.`);
+        setNotification(`Squad Submitted for GW${currentRealGameweek}! ${activeChip ? 'Chip Active!' : ''}`);
+        setChips(updatedChips); // Update local state
         setTimeout(() => setNotification(null), 3000);
         setIsEditMode(false);
     };
@@ -264,11 +338,25 @@ const App: React.FC = () => {
         if (!slots[index].player) return;
         const newSlots = slots.map((s, i) => ({
             ...s,
-            isCaptain: i === index
+            isCaptain: i === index,
+            isViceCaptain: i === index ? false : s.isViceCaptain // clear VC if becoming C
         }));
         persistTeam(newSlots);
         setNotification(`Captain set to ${slots[index].player?.name}`);
-        setTimeout(() => setNotification(null), 2000);
+        setTimeout(() => setNotification(null), 1000);
+    };
+
+    const handleMakeViceCaptain = (index: number) => {
+        if (!isEditMode) return;
+        if (!slots[index].player) return;
+        const newSlots = slots.map((s, i) => ({
+            ...s,
+            isViceCaptain: i === index,
+            isCaptain: i === index ? false : s.isCaptain // clear C if becoming VC
+        }));
+        persistTeam(newSlots);
+        setNotification(`Vice-Captain set to ${slots[index].player?.name}`);
+        setTimeout(() => setNotification(null), 1000);
     };
 
     const persistName = (name: string) => { setTeamName(name); if(user) saveUserTeam(user.uid, { teamName: name }); };
@@ -277,7 +365,7 @@ const App: React.FC = () => {
     const handleGuideStepChange = (step: number) => { if (step === 2 && !isEditMode) enterEditMode(); };
     const handleLogoClick = () => isEditMode && fileInputRef.current?.click();
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { persistLogo(reader.result as string); }; reader.readAsDataURL(file); } };
-    const handleRemovePlayer = (index: number) => { if (!isEditMode) return; const newSlots = [...slots]; newSlots[index].player = null; newSlots[index].isCaptain = false; persistTeam(newSlots); setSelectedSlotIndex(null); };
+    const handleRemovePlayer = (index: number) => { if (!isEditMode) return; const newSlots = [...slots]; newSlots[index].player = null; newSlots[index].isCaptain = false; newSlots[index].isViceCaptain = false; persistTeam(newSlots); setSelectedSlotIndex(null); };
     const handleReplacePlayer = (index: number) => { if (!isEditMode) return; setMarketSlotIndex(index); setIsMarketOpen(true); setSelectedSlotIndex(null); };
 
     const handleSlotClick = (index: number) => {
@@ -288,7 +376,7 @@ const App: React.FC = () => {
                 const s1 = newSlots[selectedSlotIndex];
                 const s2 = newSlots[index];
 
-                // Check GK
+                // Check GK constraint
                 const isGKSlot = (i: number) => i === 0 || i === 5;
                 const isGKPlayer = (p: Player | null) => p?.position === 'GK';
                 if ((isGKSlot(index) && s1.player && !isGKPlayer(s1.player)) || (isGKSlot(selectedSlotIndex) && s2.player && !isGKPlayer(s2.player))) {
@@ -299,14 +387,9 @@ const App: React.FC = () => {
                 }
 
                 // Swap logic
-                const tempPlayer = s1.player;
-                const tempCap = s1.isCaptain;
-
-                newSlots[selectedSlotIndex].player = s2.player;
-                newSlots[selectedSlotIndex].isCaptain = s2.isCaptain;
-
-                newSlots[index].player = tempPlayer;
-                newSlots[index].isCaptain = tempCap;
+                const tempP = s1.player; const tempC = s1.isCaptain; const tempVC = s1.isViceCaptain;
+                newSlots[selectedSlotIndex].player = s2.player; newSlots[selectedSlotIndex].isCaptain = s2.isCaptain; newSlots[selectedSlotIndex].isViceCaptain = s2.isViceCaptain;
+                newSlots[index].player = tempP; newSlots[index].isCaptain = tempC; newSlots[index].isViceCaptain = tempVC;
 
                 persistTeam(newSlots);
                 setSelectedSlotIndex(null);
@@ -321,7 +404,7 @@ const App: React.FC = () => {
         const existing = slots.findIndex(s => s.player?.id === player.id);
         if (existing !== -1 && existing !== marketSlotIndex) { setNotification("Player already in squad!"); setTimeout(() => setNotification(null), 3000); return; }
         const newSlots = [...slots];
-        newSlots[marketSlotIndex] = { ...newSlots[marketSlotIndex], player: player, isCaptain: false };
+        newSlots[marketSlotIndex] = { ...newSlots[marketSlotIndex], player: player, isCaptain: false, isViceCaptain: false };
         persistTeam(newSlots);
         setIsMarketOpen(false);
         setMarketSlotIndex(null);
@@ -329,6 +412,7 @@ const App: React.FC = () => {
 
     const getMarketFilter = (index: number | null) => { if (index === null) return ''; if (index === 0 || index === 5) return 'GK'; return 'OUTFIELD'; };
 
+    // Calculations
     const filledSlots = slots.filter(s => s.player !== null);
     const totalValue = filledSlots.reduce((acc, s) => acc + (s.player?.price || 0), 0);
     const remainingBudget = MAX_BUDGET - totalValue;
@@ -336,10 +420,17 @@ const App: React.FC = () => {
     const benchList = slots.filter(s => s.type === 'bench').map(s => s.player).filter((p): p is Player => !!p);
     const ownedPlayerIds = slots.map(s => s.player?.id).filter((id): id is number => id !== undefined);
 
-    // Live Point Calculation for display
-    const currentPoints = slots.filter(s => s.type === 'starter' && s.player).reduce((acc, slot) => {
-        let pts = slot.player?.points || 0;
-        if (slot.isCaptain) pts *= 2;
+    // Live Point Calculation
+    const currentPoints = slots.reduce((acc, slot) => {
+        if (!slot.player) return acc;
+
+        // Bench Boost: Count bench points
+        const isBench = slot.type === 'bench';
+        if (isBench && activeChip !== 'benchBoost') return acc;
+
+        let pts = slot.player.points;
+        if (slot.isCaptain) pts *= (activeChip === 'tripleCaptain' ? 3 : 2);
+
         return acc + pts;
     }, 0);
 
@@ -351,6 +442,35 @@ const App: React.FC = () => {
 
     const canGoBack = viewGameweek > 2;
     const canGoForward = viewGameweek < currentRealGameweek;
+
+    // Render Chip Button
+    const ChipButton = ({ id, label, icon: Icon, available }: { id: keyof UserChips, label: string, icon: any, available: number }) => {
+        const isActive = activeChip === id;
+        const isDisabled = available <= 0 && !isActive;
+        return (
+            <button
+                onClick={() => handleChipToggle(id)}
+                disabled={isDisabled}
+                className={`relative overflow-hidden group rounded-xl p-3 flex flex-col items-center justify-center border transition-all duration-300 w-full
+                    ${isActive
+                    ? 'bg-gradient-to-b from-[#3ACBE8] to-[#1CA3DE] border-white shadow-[0_0_20px_rgba(58,203,232,0.5)] scale-105 z-10'
+                    : isDisabled
+                        ? 'bg-black/20 border-white/5 opacity-40 grayscale cursor-not-allowed'
+                        : 'bg-[#29002d]/60 border-white/10 hover:border-white/30 hover:bg-[#29002d]'
+                }
+                `}
+            >
+                {isActive && <div className="absolute top-1 right-2 w-2 h-2 bg-white rounded-full animate-ping"></div>}
+                <div className={`p-2 rounded-full mb-1 ${isActive ? 'bg-white text-[#0041C7]' : 'bg-[#0041C7] text-[#3ACBE8]'}`}>
+                    <Icon size={20} />
+                </div>
+                <div className={`text-[10px] uppercase font-bold tracking-wider ${isActive ? 'text-[#0041C7]' : 'text-white'}`}>{label}</div>
+                <div className={`text-[9px] mt-1 px-2 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-[#0041C7]' : 'bg-white/10 text-gray-400'}`}>
+                    {isActive ? 'ACTIVE' : (available > 0 ? 'Play' : 'Used')}
+                </div>
+            </button>
+        );
+    };
 
     if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7]"><div className="animate-spin w-12 h-12 border-4 border-[#3ACBE8] rounded-full border-t-transparent"></div></div>;
     if (!user) return <Login />;
@@ -408,6 +528,15 @@ const App: React.FC = () => {
 
                 {currentPage === 'home' && (
                     <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full animate-in fade-in zoom-in-95 duration-500">
+
+                        {/* CHIPS BAR */}
+                        <div className="grid grid-cols-4 gap-2 md:gap-4 mb-2">
+                            <ChipButton id="benchBoost" label="Bench Boost" icon={ArrowUpCircle} available={chips.benchBoost.available} />
+                            <ChipButton id="tripleCaptain" label="Triple Captain" icon={Crown} available={chips.tripleCaptain.available} />
+                            <ChipButton id="wildcard" label="Wildcard" icon={Zap} available={chips.wildcard.available} />
+                            <ChipButton id="freeHit" label="Free Hit" icon={Shield} available={chips.freeHit.available} />
+                        </div>
+
                         <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#0160C9] border-[#3ACBE8]/40 shadow-[0_0_30px_rgba(58,203,232,0.15)] scale-[1.01]' : `${cardBg}`}`}>
                             <div className="flex items-center gap-6 w-full md:w-auto">
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
@@ -487,8 +616,10 @@ const App: React.FC = () => {
                                     onRemovePlayer={handleRemovePlayer}
                                     onReplacePlayer={handleReplacePlayer}
                                     onMakeCaptain={handleMakeCaptain}
+                                    onMakeViceCaptain={handleMakeViceCaptain}
                                     isEditMode={isEditMode}
                                     selectedSlotIndex={selectedSlotIndex}
+                                    activeChip={activeChip}
                                 />
                             ) : (
                                 <PlayerList startingXI={startingList} bench={benchList} teamName={teamName} />

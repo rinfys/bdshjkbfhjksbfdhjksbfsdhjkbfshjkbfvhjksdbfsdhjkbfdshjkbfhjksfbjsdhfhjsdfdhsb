@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Player } from '../types';
-import { Plus, X, ArrowRightLeft, Crown } from 'lucide-react';
+import { Plus, X, ArrowRightLeft, Crown, ShieldCheck } from 'lucide-react';
 
 interface PlayerCardProps {
   player: Player | null;
@@ -9,13 +9,20 @@ interface PlayerCardProps {
   onRemove?: () => void;
   onReplace?: () => void;
   onMakeCaptain?: () => void;
+  onMakeViceCaptain?: () => void;
   isBench?: boolean;
   isEditMode?: boolean;
   isSelected?: boolean;
   isCaptain?: boolean;
+  isViceCaptain?: boolean;
+  isTripleCaptain?: boolean;
 }
 
-const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick, onRemove, onReplace, onMakeCaptain, isBench, isEditMode, isSelected, isCaptain }) => {
+const PlayerCard: React.FC<PlayerCardProps> = ({
+                                                 player, positionLabel, onClick, onRemove, onReplace,
+                                                 onMakeCaptain, onMakeViceCaptain, isBench, isEditMode, isSelected,
+                                                 isCaptain, isViceCaptain, isTripleCaptain
+                                               }) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,6 +34,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
 
     const fetchRobloxAvatar = async () => {
       let userId = null;
+      // 1. Try internal API
       try {
         const r1 = await fetch("/api/roblox-usernames", {
           method: "POST",
@@ -37,6 +45,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
         if (d1.data?.[0]?.id) userId = d1.data[0].id;
       } catch (e) { /* Fail silent */ }
 
+      // 2. Try proxy if internal fails
       if (!userId) {
         try {
           const proxy = "https://corsproxy.io/?";
@@ -53,6 +62,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
 
       if (!userId) return;
 
+      // 3. Fetch Thumbnail
       let thumb = null;
       try {
         const r3 = await fetch(`/api/robloxThumbnails?userIds=${userId}&size=150x150&format=Png&isCircular=true`);
@@ -121,6 +131,13 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
     );
   }
 
+  // Calculate Points Display
+  let displayPoints = player.points;
+  let pointMultiplier = 1;
+  if (isCaptain) pointMultiplier = 2;
+  if (isTripleCaptain) pointMultiplier = 3;
+  displayPoints *= pointMultiplier;
+
   return (
       <div
           onClick={isEditMode ? onClick : undefined}
@@ -148,27 +165,46 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
                 <ArrowRightLeft size={10} strokeWidth={3} />
               </button>
 
-              <button
-                  onClick={(e) => { e.stopPropagation(); onMakeCaptain?.(); }}
-                  className={`absolute bottom-12 right-0 z-30 rounded-full p-1 shadow-lg border border-white/20 hover:scale-110 transition ${isCaptain ? 'bg-yellow-400 text-black' : 'bg-gray-600 text-gray-300 hover:bg-yellow-400 hover:text-black'}`}
-                  title="Make Captain"
-              >
-                <Crown size={10} strokeWidth={3} fill={isCaptain ? "black" : "none"} />
-              </button>
+              <div className="absolute bottom-12 -right-4 flex flex-col gap-1 z-30">
+                <button
+                    onClick={(e) => { e.stopPropagation(); onMakeCaptain?.(); }}
+                    className={`rounded-full p-1.5 shadow-lg border border-white/20 hover:scale-110 transition ${isCaptain ? 'bg-black text-yellow-400 border-yellow-400' : 'bg-gray-600 text-gray-300 hover:bg-black hover:text-yellow-400'}`}
+                    title="Make Captain"
+                >
+                  <Crown size={12} strokeWidth={3} fill={isCaptain ? "currentColor" : "none"} />
+                </button>
+                <button
+                    onClick={(e) => { e.stopPropagation(); onMakeViceCaptain?.(); }}
+                    className={`rounded-full p-1.5 shadow-lg border border-white/20 hover:scale-110 transition ${isViceCaptain ? 'bg-gray-200 text-[#0041C7] border-[#0041C7]' : 'bg-gray-600 text-gray-300 hover:bg-white hover:text-[#0041C7]'}`}
+                    title="Make Vice-Captain"
+                >
+                  <span className="font-bold text-[8px] leading-none">V</span>
+                </button>
+              </div>
             </>
         )}
 
-        {/* Captain Badge (Always Visible) */}
-        {!isEditMode && isCaptain && (
-            <div className="absolute top-0 right-2 z-20 bg-black text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold border border-yellow-400 shadow-md">
-              C
-            </div>
+        {/* Captain Badges (Always Visible) */}
+        {!isEditMode && (
+            <>
+              {isCaptain && (
+                  <div className={`absolute top-0 right-2 z-20 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold border shadow-md ${isTripleCaptain ? 'bg-black border-white animate-pulse' : 'bg-black border-yellow-400'}`}>
+                    {isTripleCaptain ? 'TC' : 'C'}
+                  </div>
+              )}
+              {isViceCaptain && (
+                  <div className="absolute top-0 right-2 z-20 bg-gray-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold border border-gray-300 shadow-md">
+                    V
+                  </div>
+              )}
+            </>
         )}
 
         <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] overflow-hidden mb-1 relative shadow-lg transition-all duration-300 flex items-center justify-center z-10
             ${!avatarUrl ? getTeamBgColor(player.teamColor) : 'bg-black/40'} 
             ${isSelected ? 'border-[#3ACBE8] shadow-[0_0_20px_rgba(58,203,232,0.6)]' : (isEditMode ? 'border-[#3ACBE8] group-hover:shadow-[0_0_15px_rgba(58,203,232,0.5)]' : 'border-white/20')}
             ${isCaptain ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-[#0041C7]' : ''}
+            ${isTripleCaptain ? 'ring-4 ring-white ring-offset-2 ring-offset-[#0041C7]' : ''}
       `}>
           {avatarUrl ? (
               <img src={avatarUrl} alt={player.name} className="w-full h-full object-cover" />
@@ -193,8 +229,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
             {isEditMode ? (
                 <span>£{player.price}m</span>
             ) : (
-                // Double points if captain
-                <span>{isCaptain ? player.points * 2 : player.points}</span>
+                <span>{displayPoints}</span>
             )}
           </div>
           <div className={`text-[9px] md:text-[10px] text-white/80 text-center uppercase font-bold mt-0.5 tracking-wider rounded-sm ${isSelected ? 'bg-[#3ACBE8]/50 text-white' : 'bg-black/20'}`}>

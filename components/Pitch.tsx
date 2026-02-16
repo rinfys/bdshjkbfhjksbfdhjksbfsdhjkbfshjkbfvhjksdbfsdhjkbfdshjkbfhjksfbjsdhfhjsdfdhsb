@@ -8,11 +8,13 @@ interface PitchProps {
     onRemovePlayer?: (index: number) => void;
     onReplacePlayer?: (index: number) => void;
     onMakeCaptain?: (index: number) => void;
+    onMakeViceCaptain?: (index: number) => void;
     isEditMode?: boolean;
     selectedSlotIndex?: number | null;
+    activeChip?: string | null;
 }
 
-const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onReplacePlayer, onMakeCaptain, isEditMode, selectedSlotIndex }) => {
+const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onReplacePlayer, onMakeCaptain, onMakeViceCaptain, isEditMode, selectedSlotIndex, activeChip }) => {
     const pitchContainerClass = isEditMode
         ? "bg-[#004f70] border-4 border-fpl-pink/50 shadow-[0_0_40px_rgba(233,0,82,0.2)]"
         : "bg-pool-radial border-2 border-white/20 shadow-2xl";
@@ -20,6 +22,25 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
     const overlayClass = isEditMode
         ? "opacity-20 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:20px_20px]"
         : "opacity-40";
+
+    const renderSlot = (slot: TeamSlot) => (
+        <PlayerCard
+            key={slot.index}
+            player={slot.player}
+            positionLabel={slot.player ? slot.player.position : (slot.index === 0 || slot.index === 5 ? "GK" : "FLEX")}
+            onClick={() => onSlotClick(slot.index)}
+            onRemove={() => onRemovePlayer?.(slot.index)}
+            onReplace={() => onReplacePlayer?.(slot.index)}
+            onMakeCaptain={() => onMakeCaptain?.(slot.index)}
+            onMakeViceCaptain={() => onMakeViceCaptain?.(slot.index)}
+            isEditMode={isEditMode}
+            isSelected={selectedSlotIndex === slot.index}
+            isCaptain={slot.isCaptain}
+            isViceCaptain={slot.isViceCaptain}
+            isTripleCaptain={slot.isCaptain && activeChip === 'tripleCaptain'}
+            isBench={slot.type === 'bench'}
+        />
+    );
 
     const starters = slots.slice(0, 5);
     const gkSlot = starters[0];
@@ -36,20 +57,7 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
         if (rowSlots.length === 0) return null;
         return (
             <div className={`flex justify-center items-center w-full px-4 ${rowSlots.length === 1 ? 'gap-0' : 'gap-4 md:gap-12'}`}>
-                {rowSlots.map(slot => (
-                    <PlayerCard
-                        key={slot.index}
-                        player={slot.player}
-                        positionLabel={slot.player ? slot.player.position : (slot.index === 0 ? "GK" : "FLEX")}
-                        onClick={() => onSlotClick(slot.index)}
-                        onRemove={() => onRemovePlayer?.(slot.index)}
-                        onReplace={() => onReplacePlayer?.(slot.index)}
-                        onMakeCaptain={() => onMakeCaptain?.(slot.index)}
-                        isEditMode={isEditMode}
-                        isSelected={selectedSlotIndex === slot.index}
-                        isCaptain={slot.isCaptain}
-                    />
-                ))}
+                {rowSlots.map(slot => renderSlot(slot))}
             </div>
         );
     };
@@ -78,17 +86,7 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
 
                 <div className="absolute inset-0 flex flex-col py-6 pt-10 pb-6 z-10">
                     <div className="flex-1 flex items-start pt-2 justify-center">
-                        <PlayerCard
-                            player={gkSlot.player}
-                            positionLabel="GK"
-                            onClick={() => onSlotClick(0)}
-                            onRemove={() => onRemovePlayer?.(0)}
-                            onReplace={() => onReplacePlayer?.(0)}
-                            onMakeCaptain={() => onMakeCaptain?.(0)}
-                            isEditMode={isEditMode}
-                            isSelected={selectedSlotIndex === 0}
-                            isCaptain={gkSlot.isCaptain}
-                        />
+                        {renderSlot(gkSlot)}
                     </div>
                     {defenders.length > 0 && <div className="flex-1 flex items-center justify-center">{renderRow(defenders)}</div>}
                     {midAndEmpty.length > 0 && <div className="flex-1 flex items-center justify-center">{renderRow(midAndEmpty)}</div>}
@@ -98,21 +96,7 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
 
             <div className={`rounded-b-xl border-x-2 border-b-2 p-4 mt-[-4px] z-10 relative shadow-inner transition-all duration-700 ${isEditMode ? 'bg-[#29002d] border-fpl-pink/50' : 'bg-gradient-to-b from-[#005f86] to-[#004f70] border-white/10'}`}>
                 <div className={`flex justify-center gap-8 px-4 rounded-lg py-4 backdrop-blur-sm min-h-[100px] items-center transition-colors duration-700 ${isEditMode ? 'bg-fpl-pink/5 border border-fpl-pink/20' : 'bg-black/20'}`}>
-                    {[5,6,7].map(i => (
-                        <PlayerCard
-                            key={i}
-                            player={slots[i].player}
-                            positionLabel={i===5 ? "GK" : (i===6?"HS":"RW")}
-                            onClick={() => onSlotClick(i)}
-                            onRemove={() => onRemovePlayer?.(i)}
-                            onReplace={() => onReplacePlayer?.(i)}
-                            onMakeCaptain={() => onMakeCaptain?.(i)}
-                            isBench
-                            isEditMode={isEditMode}
-                            isSelected={selectedSlotIndex === i}
-                            isCaptain={slots[i].isCaptain}
-                        />
-                    ))}
+                    {[5,6,7].map(i => renderSlot(slots[i]))}
                 </div>
             </div>
         </div>
