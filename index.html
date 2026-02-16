@@ -15,21 +15,18 @@
           },
           colors: {
             fpl: {
-              // Mapping "Trendy Blue Monochromatic" scheme to existing keys for instant theme update
-              purple: '#0041C7',      // Crayola’s Absolute Zero (Main Background)
-              purpleDark: '#0160C9',  // True Blue (Cards/Darker accents)
+              purple: '#0041C7',      // Absolute Zero (Main Background)
+              purpleDark: '#0160C9',  // True Blue (Cards)
               green: '#3ACBE8',       // Picton Blue (Highlights/Success)
-              blue: '#1CA3DE',        // Battery Charged Blue (Primary Actions)
-              pink: '#0D85D8',        // Blue Cola (Secondary/Alerts - replacing Pink)
+              blue: '#1CA3DE',        // Battery Charged Blue
+              pink: '#0D85D8',        // Blue Cola (Accents)
 
-              // Specific palette reference if needed
-              trendy: {
-                picton: '#3ACBE8',
-                battery: '#1CA3DE',
-                cola: '#0D85D8',
-                true: '#0160C9',
-                zero: '#0041C7'
-              }
+              // Specific palette
+              picton: '#3ACBE8',
+              battery: '#1CA3DE',
+              cola: '#0D85D8',
+              true: '#0160C9',
+              zero: '#0041C7'
             }
           },
           backgroundImage: {
@@ -43,9 +40,9 @@
   </script>
   <style>
     body {
-      background-color: #0041C7; /* Fallback */
+      background-color: #0041C7;
     }
-    /* Custom scrollbar for webkit */
+    /* Custom scrollbar */
     ::-webkit-scrollbar {
       width: 8px;
     }

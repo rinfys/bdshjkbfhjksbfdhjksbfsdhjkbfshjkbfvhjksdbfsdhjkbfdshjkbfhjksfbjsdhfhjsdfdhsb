@@ -4,7 +4,7 @@ import { fetchAllUsers } from '../firebase';
 import { Trophy, Medal, User as UserIcon, Calendar, Hash, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface LeaderboardProps {
-    players: Player[]; // Global market players (live data)
+    players: Player[];
     currentUserUid?: string;
 }
 
@@ -30,23 +30,14 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
             setLoading(true);
             const allUsers = await fetchAllUsers();
 
-            // Calculate points for each user
             const calculatedEntries = allUsers.map(user => {
-                // Get Starter Slots (Indices 0-4 are starters in this new 5-a-side logic)
                 const startingSlots = user.slots?.filter(s => s.type === 'starter' && s.player) || [];
-
-                // Calculate Live GW Points
-                // Note: If players array is empty (loading), points will be 0.
-                // That's acceptable for initial load.
                 const liveGwPoints = startingSlots.reduce((acc, slot) => {
                     if (!slot.player) return acc;
-                    // Find latest player data from the global "market" to get live points
                     const livePlayer = players.find(p => p.id === slot.player!.id);
-                    // Use live stats if available, else fallback to saved stats (rare edge case)
                     return acc + (livePlayer?.points || slot.player.points || 0);
                 }, 0);
 
-                // Calculate Total Points (History + Current GW)
                 const history = user.settings?.totalHistoryPoints || 0;
                 const total = history + liveGwPoints;
 
@@ -61,18 +52,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                 };
             });
 
-            // Show everyone, sort descending
             setEntries(calculatedEntries);
             setLoading(false);
         };
 
-        // Reload whenever players (market data) updates to keep points live
-        if (players.length > 0) {
-            loadLeaderboard();
-        } else {
-            // Also load if players are empty, just so we see the users (with 0 points)
-            loadLeaderboard();
-        }
+        loadLeaderboard();
     }, [players]);
 
     const sortedEntries = [...entries].sort((a, b) => {
@@ -90,20 +74,19 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
     return (
         <div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-8 duration-700">
             <div className="flex flex-col items-center mb-10 text-center">
-                <div className="p-4 bg-gradient-to-br from-fpl-blue to-black rounded-full mb-4 border border-fpl-green/30 shadow-[0_0_25px_rgba(58,203,232,0.3)]">
-                    <Trophy size={40} className="text-fpl-green" />
+                <div className="p-4 bg-gradient-to-br from-[#1CA3DE] to-black rounded-full mb-4 border border-[#3ACBE8]/30 shadow-[0_0_25px_rgba(58,203,232,0.3)]">
+                    <Trophy size={40} className="text-[#3ACBE8]" />
                 </div>
                 <h2 className="text-4xl font-extrabold text-white mb-2 tracking-tight">Manager Standings</h2>
                 <p className="text-gray-300 text-base max-w-lg">Live rankings of all managers in the RWA Fantasy League.</p>
             </div>
 
-            {/* Toggle */}
             <div className="flex justify-center mb-8">
                 <div className="bg-[#0041C7] p-1.5 rounded-2xl border border-white/10 flex gap-1 shadow-xl">
                     <button
                         onClick={() => setView('weekly')}
                         className={`px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 uppercase tracking-wide
-                            ${view === 'weekly' ? 'bg-fpl-green text-[#0041C7] shadow-lg shadow-fpl-green/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}
+                            ${view === 'weekly' ? 'bg-[#3ACBE8] text-[#0041C7] shadow-lg shadow-[#3ACBE8]/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}
                         `}
                     >
                         <Calendar size={16} /> Weekly
@@ -111,7 +94,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                     <button
                         onClick={() => setView('alltime')}
                         className={`px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 uppercase tracking-wide
-                            ${view === 'alltime' ? 'bg-fpl-blue text-white shadow-lg shadow-fpl-blue/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}
+                            ${view === 'alltime' ? 'bg-[#1CA3DE] text-white shadow-lg shadow-[#1CA3DE]/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}
                         `}
                     >
                         <Hash size={16} /> All Time
@@ -119,7 +102,6 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                 </div>
             </div>
 
-            {/* Table */}
             <div className="bg-[#0160C9]/80 backdrop-blur-md rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -134,7 +116,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                         {loading ? (
                             <tr>
                                 <td colSpan={3} className="p-12 text-center text-gray-300 flex flex-col items-center justify-center gap-4">
-                                    <div className="w-8 h-8 border-4 border-white/10 border-t-fpl-green rounded-full animate-spin"></div>
+                                    <div className="w-8 h-8 border-4 border-white/10 border-t-[#3ACBE8] rounded-full animate-spin"></div>
                                     <span>Calculating points...</span>
                                 </td>
                             </tr>
@@ -151,7 +133,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                                 return (
                                     <tr
                                         key={entry.uid}
-                                        className={`transition-all duration-200 group ${isMe ? 'bg-fpl-green/10' : 'hover:bg-white/5'}`}
+                                        className={`transition-all duration-200 group ${isMe ? 'bg-[#3ACBE8]/10' : 'hover:bg-white/5'}`}
                                     >
                                         <td className="p-4 flex justify-center items-center">
                                             {getRankIcon(index)}
@@ -162,11 +144,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                                                     <img src={entry.avatar} alt="Avatar" className="w-full h-full object-cover" />
                                                 </div>
                                                 <div>
-                                                    <div className={`font-bold text-base mb-0.5 flex items-center gap-2 ${isMe ? 'text-fpl-green' : 'text-white'}`}>
+                                                    <div className={`font-bold text-base mb-0.5 flex items-center gap-2 ${isMe ? 'text-[#3ACBE8]' : 'text-white'}`}>
                                                         {entry.teamName}
                                                         {entry.isSubmitted ? (
-                                                            <div className="bg-fpl-blue/20 rounded-full p-0.5" title="Squad Submitted">
-                                                                <CheckCircle size={12} className="text-fpl-blue" />
+                                                            <div className="bg-[#1CA3DE]/20 rounded-full p-0.5" title="Squad Submitted">
+                                                                <CheckCircle size={12} className="text-[#1CA3DE]" />
                                                             </div>
                                                         ) : (
                                                             <div className="bg-yellow-500/20 rounded-full p-0.5" title="Not Submitted">
@@ -175,7 +157,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                                                         )}
                                                     </div>
                                                     <div className="text-xs text-gray-400 flex items-center gap-1.5 uppercase font-medium tracking-wider">
-                                                        <UserIcon size={10} /> {entry.username} {isMe && <span className="text-fpl-green ml-1 px-1.5 py-0.5 bg-fpl-green/10 rounded text-[9px] border border-fpl-green/20">YOU</span>}
+                                                        <UserIcon size={10} /> {entry.username} {isMe && <span className="text-[#3ACBE8] ml-1 px-1.5 py-0.5 bg-[#3ACBE8]/10 rounded text-[9px] border border-[#3ACBE8]/20">YOU</span>}
                                                     </div>
                                                 </div>
                                             </div>
@@ -183,8 +165,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                                         <td className="p-4 text-center">
                                             <div className={`inline-block px-4 py-1 rounded-lg font-mono font-bold text-xl tracking-tight
                                                     ${view === 'weekly'
-                                                ? (isMe ? 'text-[#0041C7] bg-fpl-green border border-fpl-green/20' : 'text-fpl-green')
-                                                : (isMe ? 'text-white bg-fpl-blue border border-fpl-blue/20' : 'text-fpl-blue')
+                                                ? (isMe ? 'text-[#0041C7] bg-[#3ACBE8] border border-[#3ACBE8]/20' : 'text-[#3ACBE8]')
+                                                : (isMe ? 'text-white bg-[#1CA3DE] border border-[#1CA3DE]/20' : 'text-[#1CA3DE]')
                                             }`}>
                                                 {view === 'weekly' ? entry.gwPoints : entry.totalPoints}
                                             </div>

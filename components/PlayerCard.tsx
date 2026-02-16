@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Player } from '../types';
-import { Plus, RefreshCw, X, ArrowRightLeft } from 'lucide-react';
+import { Plus, X, ArrowRightLeft } from 'lucide-react';
 
 interface PlayerCardProps {
   player: Player | null;
-  positionLabel: string; // The label on the pitch (e.g. "C", "GK")
+  positionLabel: string;
   onClick: () => void;
   onRemove?: () => void;
   onReplace?: () => void;
@@ -24,25 +24,23 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
     }
 
     const fetchRobloxAvatar = async () => {
-      // 1. Try to get ID
       let userId = null;
       try {
-        // Attempt A: Local API
-        const r1 = await fetch("/api/robloxUsernames", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        // Updated Endpoint
+        const r1 = await fetch("/api/roblox-usernames", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ usernames: [player.name], excludeBannedUsers: true })
         });
         const d1 = await r1.json();
         if (d1.data?.[0]?.id) userId = d1.data[0].id;
       } catch (e) { /* Fail silent */ }
 
-      // Attempt B: Proxy if Local failed (Using corsproxy.io)
+      // Proxy Fallback
       if (!userId) {
         try {
           const proxy = "https://corsproxy.io/?";
           const target = `https://users.roblox.com/v1/usernames/users`;
-          // Note: Roblox API expects POST for this endpoint
           const r2 = await fetch(proxy + encodeURIComponent(target), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -53,18 +51,16 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
         } catch (e) { /* Fail silent */ }
       }
 
-      if (!userId) return; // No ID found, stick to default
+      if (!userId) return;
 
-      // 2. Try to get Thumbnail
+      // Thumbnail
       let thumb = null;
       try {
-        // Attempt A: Local API
         const r3 = await fetch(`/api/robloxThumbnails?userIds=${userId}&size=150x150&format=Png&isCircular=true`);
         const d3 = await r3.json();
         if (d3.data?.[0]?.state === 'Completed') thumb = d3.data[0].imageUrl;
       } catch (e) { /* Fail silent */ }
 
-      // Attempt B: Proxy
       if (!thumb) {
         try {
           const proxy = "https://corsproxy.io/?";
@@ -75,23 +71,19 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
         } catch(e) { /* Fail silent */ }
       }
 
-      if (isMounted && thumb) {
-        setAvatarUrl(thumb);
-      }
+      if (isMounted && thumb) setAvatarUrl(thumb);
     };
 
     fetchRobloxAvatar();
-
     return () => { isMounted = false; };
   }, [player?.name]);
 
   const getTeamBgColor = (color: string) => {
-    // Mapping team colors to the trendy blue palette where possible, or keeping them distinct but muted
     switch(color) {
-      case 'sky': return 'bg-[#3ACBE8]'; // Picton
-      case 'blue': return 'bg-[#1CA3DE]'; // Battery
-      case 'purple': return 'bg-[#0041C7]'; // Zero
-      case 'green': return 'bg-emerald-500'; // Keep green for distinction
+      case 'sky': return 'bg-[#3ACBE8]';
+      case 'blue': return 'bg-[#1CA3DE]';
+      case 'purple': return 'bg-[#0041C7]';
+      case 'green': return 'bg-emerald-500';
       case 'yellow': return 'bg-yellow-500';
       case 'red': return 'bg-red-600';
       case 'claret': return 'bg-[#7a003c]';
@@ -101,7 +93,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
 
   const cursorClass = isEditMode ? 'cursor-pointer hover:scale-105' : 'cursor-default';
 
-  // EMPTY STATE
   if (!player) {
     return (
         <div
@@ -110,16 +101,16 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
         >
           <div className={`w-16 h-16 md:w-20 md:h-20 flex items-center justify-center rounded-full border-2 mb-1 relative transition-all duration-500
             ${isEditMode
-              ? 'bg-fpl-green/10 border-fpl-green border-dashed animate-pulse group-hover:bg-fpl-green/30'
+              ? 'bg-[#3ACBE8]/10 border-[#3ACBE8] border-dashed animate-pulse group-hover:bg-[#3ACBE8]/30'
               : 'bg-white/5 border-white/20 border-dashed'
           }
         `}>
-            <Plus className={`transition-colors duration-300 ${isEditMode ? 'text-fpl-green' : 'text-white/30'}`} size={28} />
+            <Plus className={`transition-colors duration-300 ${isEditMode ? 'text-[#3ACBE8]' : 'text-white/30'}`} size={28} />
           </div>
 
           <div className="w-full max-w-[90px] md:max-w-[100px]">
             {isEditMode && (
-                <div className="bg-fpl-green text-[#0041C7] text-[9px] font-bold text-center py-0.5 rounded-t-sm uppercase tracking-wider">
+                <div className="bg-[#3ACBE8] text-[#0041C7] text-[9px] font-bold text-center py-0.5 rounded-t-sm uppercase tracking-wider">
                   Add Player
                 </div>
             )}
@@ -131,42 +122,36 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
     );
   }
 
-  // FILLED STATE
   return (
       <div
           onClick={isEditMode ? onClick : undefined}
           className={`flex flex-col items-center justify-center relative group w-28 transition-all duration-300 ${cursorClass}`}
       >
-        {/* Selected Indicator (for swapping) */}
         {isSelected && (
-            <div className="absolute inset-0 bg-fpl-green/40 rounded-full scale-110 animate-pulse z-0 blur-xl"></div>
+            <div className="absolute inset-0 bg-[#3ACBE8]/40 rounded-full scale-110 animate-pulse z-0 blur-xl"></div>
         )}
 
-        {/* EDIT MODE CONTROLS */}
         {isEditMode && (
             <>
               <button
                   onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
                   className="absolute top-0 left-3 z-30 bg-red-500 text-white rounded-full p-1 shadow-lg border border-white hover:bg-red-600 hover:scale-110 transition"
-                  title="Remove"
               >
                 <X size={10} strokeWidth={3} />
               </button>
 
               <button
                   onClick={(e) => { e.stopPropagation(); onReplace?.(); }}
-                  className="absolute top-0 right-3 z-30 bg-fpl-green text-[#0041C7] rounded-full p-1 shadow-lg border border-white/20 hover:bg-white hover:scale-110 transition"
-                  title="Replace"
+                  className="absolute top-0 right-3 z-30 bg-[#3ACBE8] text-[#0041C7] rounded-full p-1 shadow-lg border border-white/20 hover:bg-white hover:scale-110 transition"
               >
                 <ArrowRightLeft size={10} strokeWidth={3} />
               </button>
             </>
         )}
 
-        {/* Circle Avatar */}
         <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] overflow-hidden mb-1 relative shadow-lg transition-all duration-300 flex items-center justify-center z-10
             ${!avatarUrl ? getTeamBgColor(player.teamColor) : 'bg-black/40'} 
-            ${isSelected ? 'border-fpl-green shadow-[0_0_20px_rgba(58,203,232,0.6)]' : (isEditMode ? 'border-fpl-green group-hover:shadow-[0_0_15px_rgba(58,203,232,0.5)]' : 'border-white/20')}
+            ${isSelected ? 'border-[#3ACBE8] shadow-[0_0_20px_rgba(58,203,232,0.6)]' : (isEditMode ? 'border-[#3ACBE8] group-hover:shadow-[0_0_15px_rgba(58,203,232,0.5)]' : 'border-white/20')}
       `}>
           {avatarUrl ? (
               <img src={avatarUrl} alt={player.name} className="w-full h-full object-cover" />
@@ -176,7 +161,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
             </span>
           )}
 
-          {/* Real Team Logo overlay */}
           {player.imageUrl && (
               <div className="absolute bottom-0 right-0 w-5 h-5 md:w-6 md:h-6 rounded-full bg-white border border-black/10 flex items-center justify-center shadow-sm z-10 overflow-hidden">
                 <img src={player.imageUrl} alt="Team" className="w-full h-full object-contain" />
@@ -184,19 +168,18 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
           )}
         </div>
 
-        {/* Name and Info Box */}
         <div className="w-full max-w-[90px] md:max-w-[100px] pointer-events-none relative z-10">
-          <div className={`text-white text-[10px] md:text-[11px] font-medium text-center py-0.5 truncate border-t-2 border-l-2 border-r-2 border-fpl-green/30 rounded-t-sm px-1 ${isSelected ? 'bg-fpl-green text-[#0041C7]' : 'bg-[#0160C9]'}`}>
+          <div className={`text-white text-[10px] md:text-[11px] font-medium text-center py-0.5 truncate border-t-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-t-sm px-1 ${isSelected ? 'bg-[#3ACBE8] text-[#0041C7]' : 'bg-[#0160C9]'}`}>
             {player.name}
           </div>
-          <div className={`text-black text-[11px] md:text-[12px] font-bold text-center py-0.5 border-b-2 border-l-2 border-r-2 border-fpl-green/30 rounded-b-sm shadow-md flex justify-center items-center gap-1 transition-colors duration-300 ${isEditMode ? 'bg-fpl-green text-[#0041C7] border-fpl-green/50' : 'bg-white'}`}>
+          <div className={`text-black text-[11px] md:text-[12px] font-bold text-center py-0.5 border-b-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-b-sm shadow-md flex justify-center items-center gap-1 transition-colors duration-300 ${isEditMode ? 'bg-[#3ACBE8] text-[#0041C7] border-[#3ACBE8]/50' : 'bg-white'}`}>
             {isEditMode ? (
                 <span>£{player.price}m</span>
             ) : (
                 <span>{player.points}</span>
             )}
           </div>
-          <div className={`text-[9px] md:text-[10px] text-white/80 text-center uppercase font-bold mt-0.5 tracking-wider rounded-sm ${isSelected ? 'bg-fpl-green/50 text-white' : 'bg-black/20'}`}>
+          <div className={`text-[9px] md:text-[10px] text-white/80 text-center uppercase font-bold mt-0.5 tracking-wider rounded-sm ${isSelected ? 'bg-[#3ACBE8]/50 text-white' : 'bg-black/20'}`}>
             {player.position}
           </div>
         </div>

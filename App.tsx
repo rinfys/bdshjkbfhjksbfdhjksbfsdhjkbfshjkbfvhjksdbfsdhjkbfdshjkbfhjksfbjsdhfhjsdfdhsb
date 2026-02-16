@@ -12,15 +12,13 @@ import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 
 import { INITIAL_TEAM_SLOTS } from './constants';
-import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, AlertTriangle, Plus, RefreshCw, XCircle, CheckCircle, Send, Save, Undo2, Users, LayoutDashboard } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard } from 'lucide-react';
 import { Player, TeamSlot, UserSettings } from './types';
 import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA } from './firebase';
 import { User } from 'firebase/auth';
 
 const MAX_BUDGET = 100.0;
-// Deadline: 2/21/2026 at 3PM GMT (ISO format)
 const DEADLINE_ISO = "2026-02-21T15:00:00Z";
-// Unlock: Monday after deadline (Feb 23, 2026)
 const UNLOCK_ISO = "2026-02-23T00:00:00Z";
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -34,97 +32,57 @@ const DEFAULT_SETTINGS: UserSettings = {
     tutorialCompleted: false
 };
 
-const CURRENCY_SYMBOLS = {
-    'GBP': '£',
-    'USD': '$',
-    'EUR': '€'
-};
+const CURRENCY_SYMBOLS = { 'GBP': '£', 'USD': '$', 'EUR': '€' };
 
 const App: React.FC = () => {
-    // Auth State
     const [user, setUser] = useState<User | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [userDataLoading, setUserDataLoading] = useState(true);
-
-    // Navigation State
     const [currentPage, setCurrentPage] = useState('home');
-
-    // App State
     const [view, setView] = useState<'pitch' | 'list'>('pitch');
-    // Start at Gameweek 2
     const [gameweek, setGameweek] = useState(2);
     const [teamName, setTeamName] = useState("My Team");
     const [logoUrl, setLogoUrl] = useState("");
-
-    // Edit Mode State & Backup for Revert
     const [isEditMode, setIsEditMode] = useState(false);
     const [backupSlots, setBackupSlots] = useState<TeamSlot[]>([]);
-
-    // Swap Logic State
     const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
-
-    // Settings State
     const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
     const [isUsernameSetup, setIsUsernameSetup] = useState(false);
     const [showGuide, setShowGuide] = useState(false);
     const [notification, setNotification] = useState<string | null>(null);
-
-    // Players from Database (Market)
     const [dbPlayers, setDbPlayers] = useState<Player[]>([]);
-
-    // State for Team Slots
     const [slots, setSlots] = useState<TeamSlot[]>(INITIAL_TEAM_SLOTS);
     const [isSquadComplete, setIsSquadComplete] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
-
-    // Modal States
     const [isMarketOpen, setIsMarketOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [marketSlotIndex, setMarketSlotIndex] = useState<number | null>(null);
-
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Derived Locking State
     const now = Date.now();
     const deadlineTime = new Date(DEADLINE_ISO).getTime();
     const unlockTime = new Date(UNLOCK_ISO).getTime();
     const isLocked = now > deadlineTime && now < unlockTime;
 
-    // --- AUTH & DATA SYNC ---
     useEffect(() => {
-        const safetyTimer = setTimeout(() => {
-            if (authLoading) {
-                setAuthLoading(false);
-            }
-        }, 2500);
-
+        const safetyTimer = setTimeout(() => { if (authLoading) setAuthLoading(false); }, 2500);
         const unsubscribeAuth = subscribeToAuth((currentUser) => {
             setUser(currentUser);
             setAuthLoading(false);
             clearTimeout(safetyTimer);
         });
-
-        return () => {
-            unsubscribeAuth();
-            clearTimeout(safetyTimer);
-        };
+        return () => { unsubscribeAuth(); clearTimeout(safetyTimer); };
     }, []);
 
-    // Sync User Data
     useEffect(() => {
-        if (!user) {
-            setUserDataLoading(false);
-            return;
-        }
+        if (!user) { setUserDataLoading(false); return; }
         setUserDataLoading(true);
-
         const unsubscribeUser = subscribeToUserTeam(user.uid, (data) => {
             if (data) {
                 if (data.teamName) setTeamName(data.teamName);
                 setLogoUrl(data.logoUrl || "");
                 setIsSquadComplete(!!data.isSquadComplete);
                 setIsSubmitted(!!data.isSubmitted);
-
                 if (data.settings) {
                     const mergedSettings = { ...DEFAULT_SETTINGS, ...data.settings };
                     setSettings(mergedSettings);
@@ -135,11 +93,9 @@ const App: React.FC = () => {
                         if (!mergedSettings.tutorialCompleted) setTimeout(() => setShowGuide(true), 500);
                     }
                 } else {
-                    const newSettings = { ...DEFAULT_SETTINGS, username: '' };
-                    setSettings(newSettings);
+                    setSettings({ ...DEFAULT_SETTINGS, username: '' });
                     setIsUsernameSetup(true);
                 }
-
                 if (data.slots && Array.isArray(data.slots)) {
                     const mergedSlots = INITIAL_TEAM_SLOTS.map((defaultSlot, idx) => {
                         const savedSlot = data.slots[idx];
@@ -148,26 +104,16 @@ const App: React.FC = () => {
                     setSlots(mergedSlots);
                 }
             } else {
-                const initialSettings = { ...DEFAULT_SETTINGS, username: '' };
-                const initialData = {
-                    teamName: "My Team",
-                    slots: INITIAL_TEAM_SLOTS,
-                    logoUrl: "",
-                    settings: initialSettings,
-                    isSquadComplete: false,
-                    isSubmitted: false
-                };
+                const initialData = { teamName: "My Team", slots: INITIAL_TEAM_SLOTS, logoUrl: "", settings: { ...DEFAULT_SETTINGS, username: '' }, isSquadComplete: false, isSubmitted: false };
                 saveUserTeam(user.uid, initialData);
-                setSettings(initialSettings);
+                setSettings(initialData.settings);
                 setIsUsernameSetup(true);
             }
             setUserDataLoading(false);
         });
-
         return () => unsubscribeUser();
     }, [user]);
 
-    // Sync Global Market Players
     useEffect(() => {
         if (!user) return;
         const unsubscribeMarket = subscribeToPlayers((fetchedPlayers) => {
@@ -177,49 +123,35 @@ const App: React.FC = () => {
             } else {
                 setDbPlayers(fetchedPlayers);
             }
-
-            // Live update prices/points of owned players
             const sourceData = (fetchedPlayers && fetchedPlayers.length > 0) ? fetchedPlayers : INITIAL_DB_DATA;
             setSlots(currentSlots => {
-                const newSlots = currentSlots.map(slot => {
+                return currentSlots.map(slot => {
                     if (!slot.player) return slot;
                     const updatedPlayer = sourceData.find(p => p.id === slot.player!.id);
                     return updatedPlayer ? { ...slot, player: updatedPlayer } : slot;
                 });
-                return newSlots;
             });
         });
         return () => unsubscribeMarket();
     }, [user]);
 
-    // Theme Application
     useEffect(() => {
         if (settings.theme === 'light') {
             document.body.style.backgroundColor = '#f3f4f6';
             document.body.style.color = '#1f2937';
         } else {
-            document.body.style.backgroundColor = '#0041C7'; // Absolute Zero
+            document.body.style.backgroundColor = '#0041C7';
             document.body.style.color = '#ffffff';
         }
     }, [settings.theme]);
 
-    // --- LOGIC ---
-
     const persistTeam = (newSlots: TeamSlot[]) => {
         const starters = newSlots.filter(s => s.type === 'starter');
-        const startersFilled = starters.every(s => s.player !== null);
-        const complete = startersFilled;
-
+        const complete = starters.every(s => s.player !== null);
         setIsSquadComplete(complete);
         setSlots(newSlots);
-
-        // Auto-save draft, but REVOKE submission
         if(user) {
-            saveUserTeam(user.uid, {
-                slots: newSlots,
-                isSquadComplete: complete,
-                isSubmitted: false // Editing revokes submission
-            });
+            saveUserTeam(user.uid, { slots: newSlots, isSquadComplete: complete, isSubmitted: false });
             setIsSubmitted(false);
         }
     };
@@ -230,37 +162,24 @@ const App: React.FC = () => {
             setTimeout(() => setNotification(null), 4000);
             return;
         }
-        // Snapshot current slots for revert capability
         setBackupSlots(JSON.parse(JSON.stringify(slots)));
         setIsEditMode(true);
     };
 
     const cancelEditMode = () => {
-        // Revert to backup
         setSlots(backupSlots);
         setIsEditMode(false);
-
-        // Restore slots in DB to backup
-        if (user) {
-            saveUserTeam(user.uid, {
-                slots: backupSlots,
-                // We leave isSubmitted as is (technically if they revert, they are back to whatever they were)
-            });
-        }
+        if (user) saveUserTeam(user.uid, { slots: backupSlots });
     };
 
     const handleSubmitSquad = () => {
         if (!user) return;
-
         const starters = slots.filter(s => s.type === 'starter');
-        const startersFilled = starters.every(s => s.player !== null);
-
-        if (!startersFilled) {
+        if (!starters.every(s => s.player !== null)) {
             setNotification("You must fill your starting 5 before submitting!");
             setTimeout(() => setNotification(null), 3000);
             return;
         }
-
         setIsSubmitted(true);
         saveUserTeam(user.uid, { isSubmitted: true, slots: slots });
         setNotification("Squad Submitted! Good luck.");
@@ -268,112 +187,44 @@ const App: React.FC = () => {
         setIsEditMode(false);
     };
 
-    const persistName = (name: string) => {
-        setTeamName(name);
-        if(user) saveUserTeam(user.uid, { teamName: name });
-    };
-
-    const persistLogo = (url: string) => {
-        setLogoUrl(url);
-        if(user) saveUserTeam(user.uid, { logoUrl: url });
-    }
-
-    const finishGuide = () => {
-        setShowGuide(false);
-        const updatedSettings = { ...settings, tutorialCompleted: true };
-        setSettings(updatedSettings);
-        if(user) saveUserTeam(user.uid, { settings: updatedSettings });
-        enterEditMode();
-    };
-
-    const handleGuideStepChange = (step: number) => {
-        if (step === 2 && !isEditMode) enterEditMode();
-    };
-
+    const persistName = (name: string) => { setTeamName(name); if(user) saveUserTeam(user.uid, { teamName: name }); };
+    const persistLogo = (url: string) => { setLogoUrl(url); if(user) saveUserTeam(user.uid, { logoUrl: url }); };
+    const finishGuide = () => { setShowGuide(false); const updated = { ...settings, tutorialCompleted: true }; setSettings(updated); if(user) saveUserTeam(user.uid, { settings: updated }); enterEditMode(); };
+    const handleGuideStepChange = (step: number) => { if (step === 2 && !isEditMode) enterEditMode(); };
     const handleLogoClick = () => isEditMode && fileInputRef.current?.click();
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64String = reader.result as string;
-                persistLogo(base64String);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    // --- TEAM BUILDER ACTIONS ---
-
-    const handleRemovePlayer = (index: number) => {
-        if (!isEditMode) return;
-        const newSlots = [...slots];
-        newSlots[index].player = null;
-        persistTeam(newSlots);
-        setSelectedSlotIndex(null);
-    };
-
-    const handleReplacePlayer = (index: number) => {
-        if (!isEditMode) return;
-        setMarketSlotIndex(index);
-        setIsMarketOpen(true);
-        setSelectedSlotIndex(null);
-    };
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { persistLogo(reader.result as string); }; reader.readAsDataURL(file); } };
+    const handleRemovePlayer = (index: number) => { if (!isEditMode) return; const newSlots = [...slots]; newSlots[index].player = null; persistTeam(newSlots); setSelectedSlotIndex(null); };
+    const handleReplacePlayer = (index: number) => { if (!isEditMode) return; setMarketSlotIndex(index); setIsMarketOpen(true); setSelectedSlotIndex(null); };
 
     const handleSlotClick = (index: number) => {
         if (!isEditMode) return;
-        const clickedSlot = slots[index];
-
-        // Swap Logic
         if (selectedSlotIndex !== null) {
-            if (selectedSlotIndex === index) {
-                setSelectedSlotIndex(null);
-            } else {
+            if (selectedSlotIndex === index) { setSelectedSlotIndex(null); } else {
                 const newSlots = [...slots];
                 const player1 = newSlots[selectedSlotIndex].player;
                 const player2 = newSlots[index].player;
-
                 const isGKSlot = (i: number) => i === 0 || i === 5;
                 const isGKPlayer = (p: Player | null) => p?.position === 'GK';
-
-                if (isGKSlot(index) && player1 && !isGKPlayer(player1)) {
+                if ((isGKSlot(index) && player1 && !isGKPlayer(player1)) || (isGKSlot(selectedSlotIndex) && player2 && !isGKPlayer(player2))) {
                     setNotification("Only Goalkeepers can play in GK slots.");
                     setTimeout(() => setNotification(null), 3000);
                     setSelectedSlotIndex(null);
                     return;
                 }
-                if (isGKSlot(selectedSlotIndex) && player2 && !isGKPlayer(player2)) {
-                    setNotification("Only Goalkeepers can play in GK slots.");
-                    setTimeout(() => setNotification(null), 3000);
-                    setSelectedSlotIndex(null);
-                    return;
-                }
-
                 newSlots[selectedSlotIndex].player = player2;
                 newSlots[index].player = player1;
                 persistTeam(newSlots);
                 setSelectedSlotIndex(null);
             }
-            return;
-        }
-
-        if (!clickedSlot.player) {
-            setMarketSlotIndex(index);
-            setIsMarketOpen(true);
         } else {
-            setSelectedSlotIndex(index);
+            !slots[index].player ? (setMarketSlotIndex(index), setIsMarketOpen(true)) : setSelectedSlotIndex(index);
         }
     };
 
     const handlePlayerSelect = (player: Player) => {
         if (marketSlotIndex === null) return;
-        const existingSlotIndex = slots.findIndex(s => s.player?.id === player.id);
-        if (existingSlotIndex !== -1 && existingSlotIndex !== marketSlotIndex) {
-            setNotification("Player already in squad!");
-            setTimeout(() => setNotification(null), 3000);
-            return;
-        }
+        const existing = slots.findIndex(s => s.player?.id === player.id);
+        if (existing !== -1 && existing !== marketSlotIndex) { setNotification("Player already in squad!"); setTimeout(() => setNotification(null), 3000); return; }
         const newSlots = [...slots];
         newSlots[marketSlotIndex] = { ...newSlots[marketSlotIndex], player: player };
         persistTeam(newSlots);
@@ -381,30 +232,20 @@ const App: React.FC = () => {
         setMarketSlotIndex(null);
     };
 
-    const getMarketFilter = (index: number | null) => {
-        if (index === null) return '';
-        if (index === 0 || index === 5) return 'GK';
-        return 'OUTFIELD';
-    };
+    const getMarketFilter = (index: number | null) => { if (index === null) return ''; if (index === 0 || index === 5) return 'GK'; return 'OUTFIELD'; };
 
-    // Stats
     const filledSlots = slots.filter(s => s.player !== null);
     const totalValue = filledSlots.reduce((acc, s) => acc + (s.player?.price || 0), 0);
     const remainingBudget = MAX_BUDGET - totalValue;
-    const avgTeamRating = filledSlots.length > 0
-        ? (filledSlots.reduce((acc, s) => acc + (s.player?.avgRating || 0), 0) / filledSlots.length).toFixed(1)
-        : "0.0";
     const startingXI = slots.filter(s => s.type === 'starter' && s.player);
-    const totalPoints = startingXI.reduce((acc, s) => acc + (s.player?.points || 0), 0);
     const startingList = slots.filter(s => s.type === 'starter').map(s => s.player).filter((p): p is Player => !!p);
     const benchList = slots.filter(s => s.type === 'bench').map(s => s.player).filter((p): p is Player => !!p);
     const ownedPlayerIds = slots.map(s => s.player?.id).filter((id): id is number => id !== undefined);
 
-    // Styling
     const isLight = settings.theme === 'light';
-    const bgMain = isLight ? 'bg-gray-100' : 'bg-[#0041C7]'; // Absolute Zero Background
+    const bgMain = isLight ? 'bg-gray-100' : 'bg-[#0041C7]';
     const textMain = isLight ? 'text-gray-900' : 'text-white';
-    const cardBg = isLight ? 'bg-white shadow-xl border-gray-200' : 'bg-[#0160C9]/80 backdrop-blur-md border-white/20 shadow-2xl'; // True Blue Card
+    const cardBg = isLight ? 'bg-white shadow-xl border-gray-200' : 'bg-[#0160C9]/80 backdrop-blur-md border-white/20 shadow-2xl';
     const currencySymbol = CURRENCY_SYMBOLS[settings.currency];
 
     if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7]"><div className="animate-spin w-12 h-12 border-4 border-fpl-green rounded-full border-t-transparent"></div></div>;
@@ -417,17 +258,15 @@ const App: React.FC = () => {
 
             <GuideOverlay active={showGuide} onComplete={finishGuide} teamName={teamName} logoUrl={logoUrl} onStepChange={handleGuideStepChange} />
 
-            {/* Notification */}
             {notification && (
                 <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top-4 fade-in">
-                    <div className="bg-fpl-pink text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 font-bold border border-white/20">
+                    <div className="bg-[#0D85D8] text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 font-bold border border-white/20">
                         {notification.includes("Submitted") ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
                         {notification}
                     </div>
                 </div>
             )}
 
-            {/* EDIT MODE STICKY FOOTER - THE ONLY WAY OUT */}
             {isEditMode && (
                 <div className="fixed bottom-0 left-0 w-full bg-[#0160C9]/95 backdrop-blur-xl z-[100] border-t border-fpl-green/30 shadow-[0_-5px_30px_rgba(58,203,232,0.2)] animate-in slide-in-from-bottom-full duration-300">
                     <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -443,7 +282,7 @@ const App: React.FC = () => {
                             <button onClick={cancelEditMode} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold uppercase flex items-center gap-2 transition border border-white/5">
                                 <Undo2 size={16} /> Cancel
                             </button>
-                            <button onClick={handleSubmitSquad} className="px-6 py-2.5 bg-fpl-green hover:bg-white text-fpl-purple font-extrabold rounded-xl text-xs uppercase flex items-center gap-2 transition shadow-lg shadow-fpl-green/30 transform hover:scale-105">
+                            <button onClick={handleSubmitSquad} className="px-6 py-2.5 bg-fpl-green hover:bg-white text-[#0041C7] font-extrabold rounded-xl text-xs uppercase flex items-center gap-2 transition shadow-lg shadow-fpl-green/30 transform hover:scale-105">
                                 <Save size={16} /> Submit & Save
                             </button>
                         </div>
@@ -451,13 +290,11 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {/* AMBIENT BACKGROUND */}
             <div className="fixed top-0 left-0 w-full h-screen pointer-events-none overflow-hidden z-0">
                 <div className={`absolute top-[-20%] left-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 bg-fpl-green opacity-10`}></div>
                 <div className={`absolute bottom-[-20%] right-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 bg-fpl-blue opacity-15`}></div>
             </div>
 
-            {/* NAVBAR (HIDDEN IN EDIT MODE) */}
             {!isEditMode && (
                 <Navbar currentView={currentPage} onNavigate={setCurrentPage} username={settings.username} profilePictureUrl={settings.profilePictureUrl} onLogout={logoutUser} onOpenSettings={() => setIsSettingsOpen(true)} />
             )}
@@ -466,8 +303,6 @@ const App: React.FC = () => {
 
                 {currentPage === 'home' && (
                     <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full animate-in fade-in zoom-in-95 duration-500">
-
-                        {/* TEAM HEADER */}
                         <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#0160C9] border-fpl-green/40 shadow-[0_0_30px_rgba(58,203,232,0.15)] scale-[1.01]' : `${cardBg}`}`}>
                             <div className="flex items-center gap-6 w-full md:w-auto">
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
@@ -495,8 +330,6 @@ const App: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-
-                            {/* STATS */}
                             <div className="flex gap-8">
                                 <div className="text-right">
                                     <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Total Points</div>
@@ -509,7 +342,6 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* DASHBOARD ACTION BAR */}
                         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                             <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/5 shadow-inner">
                                 <button className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 transition"><ChevronLeft size={20}/></button>
@@ -520,7 +352,6 @@ const App: React.FC = () => {
                                 <button className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 transition"><ChevronRight size={20}/></button>
                             </div>
 
-                            {/* MAIN ACTION BUTTON */}
                             {!isEditMode && (
                                 <button
                                     onClick={enterEditMode}
@@ -536,7 +367,6 @@ const App: React.FC = () => {
                             )}
                         </div>
 
-                        {/* PITCH */}
                         <div id="pitch-container" className="relative">
                             {view === 'pitch' ? (
                                 <Pitch slots={slots} onSlotClick={handleSlotClick} onRemovePlayer={handleRemovePlayer} onReplacePlayer={handleReplacePlayer} isEditMode={isEditMode} selectedSlotIndex={selectedSlotIndex} />
