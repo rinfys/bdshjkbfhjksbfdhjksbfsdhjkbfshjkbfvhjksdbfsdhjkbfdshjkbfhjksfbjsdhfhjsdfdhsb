@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Player, UserData, TeamSlot } from '../types';
+import { Player } from '../types';
 import { fetchAllUsers } from '../firebase';
 import { Trophy, Medal, User as UserIcon, Calendar, Hash, CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -32,18 +32,21 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
 
             // Calculate points for each user
             const calculatedEntries = allUsers.map(user => {
-                // Get Starter Slots
+                // Get Starter Slots (Indices 0-4 are starters in this new 5-a-side logic,
+                // but we rely on the 'type' field which is robust)
                 const startingSlots = user.slots?.filter(s => s.type === 'starter' && s.player) || [];
 
                 // Calculate Live GW Points
+                // Note: If players array is empty (loading), points will be 0.
+                // That's acceptable for initial load.
                 const liveGwPoints = startingSlots.reduce((acc, slot) => {
-                    // Find latest player data
+                    if (!slot.player) return acc;
+                    // Find latest player data from the global "market" to get live points
                     const livePlayer = players.find(p => p.id === slot.player!.id);
                     return acc + (livePlayer?.points || 0);
                 }, 0);
 
                 // Calculate Total Points (History + Current GW)
-                // Assuming settings.totalHistoryPoints exists, else 0
                 const history = user.settings?.totalHistoryPoints || 0;
                 const total = history + liveGwPoints;
 
@@ -58,12 +61,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                 };
             });
 
-            // No filter! Show everyone.
+            // Show everyone, sort descending
             setEntries(calculatedEntries);
             setLoading(false);
         };
 
+        // Reload whenever players (market data) updates to keep points live
         if (players.length > 0) {
+            loadLeaderboard();
+        } else {
+            // Also load if players are empty, just so we see the users (with 0 points)
             loadLeaderboard();
         }
     }, [players]);
@@ -86,11 +93,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                 <div className="p-4 bg-gradient-to-br from-fpl-purple to-black rounded-full mb-4 border border-fpl-green/30 shadow-[0_0_25px_rgba(0,255,135,0.3)]">
                     <Trophy size={40} className="text-fpl-green" />
                 </div>
-                <h2 className="text-4xl font-extrabold text-white mb-2 tracking-tight">Global Standings</h2>
-                <p className="text-gray-400 text-base max-w-lg">Check how you stack up against the best managers in the world.</p>
-                <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 bg-black/20 px-3 py-1.5 rounded-full border border-white/5">
-                    <CheckCircle size={12} className="text-fpl-green" /> Showing all managers
-                </div>
+                <h2 className="text-4xl font-extrabold text-white mb-2 tracking-tight">Manager Standings</h2>
+                <p className="text-gray-400 text-base max-w-lg">Live rankings of all managers in the RWA Fantasy League.</p>
             </div>
 
             {/* Toggle */}
@@ -137,7 +141,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ players, currentUserUid }) =>
                         ) : sortedEntries.length === 0 ? (
                             <tr>
                                 <td colSpan={3} className="p-12 text-center text-gray-500">
-                                    No active managers found for this week.<br/>
+                                    No active managers found.<br/>
                                     <span className="text-xs opacity-50">Create a team to be the first!</span>
                                 </td>
                             </tr>

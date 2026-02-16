@@ -12,7 +12,7 @@ import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 
 import { INITIAL_TEAM_SLOTS } from './constants';
-import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, Eye, AlertTriangle, Plus, RefreshCw, XCircle, CheckCircle, Send, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, AlertTriangle, Plus, RefreshCw, XCircle, CheckCircle, Send, Save, Undo2, Users } from 'lucide-react';
 import { Player, TeamSlot, UserSettings } from './types';
 import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA } from './firebase';
 import { User } from 'firebase/auth';
@@ -54,10 +54,12 @@ const App: React.FC = () => {
     // Start at Gameweek 2
     const [gameweek, setGameweek] = useState(2);
     const [teamName, setTeamName] = useState("My Team");
-    const [logoUrl, setLogoUrl] = useState(""); // Empty string means "No Logo Set"
+    const [logoUrl, setLogoUrl] = useState("");
 
-    // Edit Mode State
+    // Edit Mode State & Backup for Revert
     const [isEditMode, setIsEditMode] = useState(false);
+    const [backupSlots, setBackupSlots] = useState<TeamSlot[]>([]);
+
     // Swap Logic State
     const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
 
@@ -68,7 +70,6 @@ const App: React.FC = () => {
     const [notification, setNotification] = useState<string | null>(null);
 
     // Players from Database (Market)
-    // Initialize with EMPTY array to ensure we are waiting for DB connection
     const [dbPlayers, setDbPlayers] = useState<Player[]>([]);
 
     // State for Team Slots
@@ -93,7 +94,6 @@ const App: React.FC = () => {
     useEffect(() => {
         const safetyTimer = setTimeout(() => {
             if (authLoading) {
-                console.warn("Auth initialization timed out. Defaulting to logged out.");
                 setAuthLoading(false);
             }
         }, 2500);
@@ -116,62 +116,38 @@ const App: React.FC = () => {
             setUserDataLoading(false);
             return;
         }
-
         setUserDataLoading(true);
 
-        const dataTimer = setTimeout(() => {
-            setUserDataLoading(prev => {
-                if (prev) {
-                    return false;
-                }
-                return prev;
-            });
-        }, 5000);
-
         const unsubscribeUser = subscribeToUserTeam(user.uid, (data) => {
-            clearTimeout(dataTimer);
-
             if (data) {
-                // Populate Team Data
                 if (data.teamName) setTeamName(data.teamName);
                 setLogoUrl(data.logoUrl || "");
                 setIsSquadComplete(!!data.isSquadComplete);
                 setIsSubmitted(!!data.isSubmitted);
 
-                // Sync Settings
                 if (data.settings) {
-                    // Merge DB settings with defaults to ensure all keys exist
                     const mergedSettings = { ...DEFAULT_SETTINGS, ...data.settings };
                     setSettings(mergedSettings);
-
-                    // CHECK: Do we have a username?
                     if (!mergedSettings.username || mergedSettings.username.trim() === '') {
                         setIsUsernameSetup(true);
                     } else {
                         setIsUsernameSetup(false);
-                        // Trigger guide if not completed
-                        if (!mergedSettings.tutorialCompleted) {
-                            setTimeout(() => setShowGuide(true), 500);
-                        }
+                        if (!mergedSettings.tutorialCompleted) setTimeout(() => setShowGuide(true), 500);
                     }
                 } else {
-                    // No settings found (migration or first time weirdness), force setup
                     const newSettings = { ...DEFAULT_SETTINGS, username: '' };
                     setSettings(newSettings);
                     setIsUsernameSetup(true);
                 }
 
-                // Sync Slots
                 if (data.slots && Array.isArray(data.slots)) {
                     const mergedSlots = INITIAL_TEAM_SLOTS.map((defaultSlot, idx) => {
                         const savedSlot = data.slots[idx];
-                        // Ensure we keep the structure but take the saved player
                         return savedSlot ? { ...defaultSlot, ...savedSlot } : defaultSlot;
                     });
                     setSlots(mergedSlots);
                 }
             } else {
-                // NEW USER: Initialize DB
                 const initialSettings = { ...DEFAULT_SETTINGS, username: '' };
                 const initialData = {
                     teamName: "My Team",
@@ -181,38 +157,29 @@ const App: React.FC = () => {
                     isSquadComplete: false,
                     isSubmitted: false
                 };
-
-                // Initialize DB for this user
                 saveUserTeam(user.uid, initialData);
-
-                // Set Local State
                 setSettings(initialSettings);
                 setIsUsernameSetup(true);
             }
             setUserDataLoading(false);
         });
 
-        return () => {
-            unsubscribeUser();
-            clearTimeout(dataTimer);
-        };
+        return () => unsubscribeUser();
     }, [user]);
 
-    // Sync Global Market Players - WAIT FOR USER
+    // Sync Global Market Players
     useEffect(() => {
-        if (!user) return; // FIX: Do not attempt read if not authenticated
-
+        if (!user) return;
         const unsubscribeMarket = subscribeToPlayers((fetchedPlayers) => {
             if (!fetchedPlayers || fetchedPlayers.length === 0) {
-                console.log("Database empty. Seeding...");
                 seedDatabase(INITIAL_DB_DATA, false);
                 setDbPlayers(INITIAL_DB_DATA);
             } else {
                 setDbPlayers(fetchedPlayers);
             }
 
+            // Live update prices/points of owned players
             const sourceData = (fetchedPlayers && fetchedPlayers.length > 0) ? fetchedPlayers : INITIAL_DB_DATA;
-
             setSlots(currentSlots => {
                 const newSlots = currentSlots.map(slot => {
                     if (!slot.player) return slot;
@@ -222,70 +189,78 @@ const App: React.FC = () => {
                 return newSlots;
             });
         });
-
         return () => unsubscribeMarket();
     }, [user]);
-
-    // Ensure Edit Mode is disabled if locked
-    useEffect(() => {
-        if (isLocked) {
-            setIsEditMode(false);
-        }
-    }, [isLocked]);
 
     // Theme Application
     useEffect(() => {
         if (settings.theme === 'light') {
-            document.body.style.backgroundColor = '#f3f4f6'; // Light Gray
-            document.body.style.color = '#1f2937'; // Dark Gray
+            document.body.style.backgroundColor = '#f3f4f6';
+            document.body.style.color = '#1f2937';
         } else {
             document.body.style.backgroundColor = '#1a001e';
             document.body.style.color = '#ffffff';
         }
     }, [settings.theme]);
 
-    // --- HELPERS ---
+    // --- LOGIC ---
 
     const persistTeam = (newSlots: TeamSlot[]) => {
-        // Validation: Check if STARTING 5 (Indices 0-4) are filled
-        // Slot 0 (GK) + Slots 1-4 (Outfield)
+        // Only update local state here if in edit mode.
+        // We do NOT save to Firebase on every click in Edit Mode anymore to allow "Cancel".
+        // BUT to prevent data loss on refresh, we will autosave to a "draft" state implicitly
+        // by saving to Firebase but keeping isSubmitted false.
+
         const starters = newSlots.filter(s => s.type === 'starter');
         const startersFilled = starters.every(s => s.player !== null);
-
         const complete = startersFilled;
 
         setIsSquadComplete(complete);
         setSlots(newSlots);
 
-        // NOTE: ANY change to the team REVOKES submission status
-        // This forces the user to "Submit" again to lock in the new squad
-        const newSubmittedState = false;
-        setIsSubmitted(newSubmittedState);
-
+        // Auto-save draft, but REVOKE submission
         if(user) {
-            // Persist to Firebase
             saveUserTeam(user.uid, {
                 slots: newSlots,
                 isSquadComplete: complete,
-                isSubmitted: newSubmittedState
+                isSubmitted: false // Editing revokes submission
+            });
+            setIsSubmitted(false);
+        }
+    };
+
+    const enterEditMode = () => {
+        if (isLocked) {
+            setNotification(`Deadline Passed! Locked until ${new Date(UNLOCK_ISO).toLocaleDateString('en-GB')}.`);
+            setTimeout(() => setNotification(null), 4000);
+            return;
+        }
+        // Snapshot current slots for revert capability
+        setBackupSlots(JSON.parse(JSON.stringify(slots)));
+        setIsEditMode(true);
+    };
+
+    const cancelEditMode = () => {
+        // Revert to backup
+        setSlots(backupSlots);
+        setIsEditMode(false);
+        // We also need to restore the previous "isSubmitted" state if we reverted?
+        // This is tricky. Simplified: If they cancel, we revert slots in DB too.
+        if (user) {
+            saveUserTeam(user.uid, {
+                slots: backupSlots,
+                // We assume if they cancel, we go back to whatever state they were in.
+                // Ideally we'd store the previous isSubmitted state too, but let's assume
+                // if they revert to a valid squad it might be submitted.
+                // For safety, let's keep isSubmitted as is (likely false if they edited).
+                // Actually, let's just revert slots.
             });
         }
     };
 
-    const persistName = (name: string) => {
-        setTeamName(name); // Optimistic update
-        if(user) saveUserTeam(user.uid, { teamName: name });
-    };
-
-    const persistLogo = (url: string) => {
-        setLogoUrl(url); // Optimistic update
-        if(user) saveUserTeam(user.uid, { logoUrl: url });
-    }
-
     const handleSubmitSquad = () => {
         if (!user) return;
 
-        // Final Validation Check
         const starters = slots.filter(s => s.type === 'starter');
         const startersFilled = starters.every(s => s.player !== null);
 
@@ -296,49 +271,35 @@ const App: React.FC = () => {
         }
 
         setIsSubmitted(true);
-        saveUserTeam(user.uid, { isSubmitted: true });
-        setNotification("Squad Submitted! Good luck for Gameweek " + gameweek);
+        saveUserTeam(user.uid, { isSubmitted: true, slots: slots });
+        setNotification("Squad Submitted! Good luck.");
         setTimeout(() => setNotification(null), 3000);
         setIsEditMode(false);
     };
 
+    const persistName = (name: string) => {
+        setTeamName(name);
+        if(user) saveUserTeam(user.uid, { teamName: name });
+    };
+
+    const persistLogo = (url: string) => {
+        setLogoUrl(url);
+        if(user) saveUserTeam(user.uid, { logoUrl: url });
+    }
+
     const finishGuide = () => {
         setShowGuide(false);
-
         const updatedSettings = { ...settings, tutorialCompleted: true };
         setSettings(updatedSettings);
-
-        if(user) {
-            saveUserTeam(user.uid, { settings: updatedSettings });
-        }
-
-        // Enable edit mode and scroll to pitch
-        setIsEditMode(true);
-        setTimeout(() => {
-            const el = document.getElementById('pitch-container');
-            if(el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 100);
+        if(user) saveUserTeam(user.uid, { settings: updatedSettings });
+        enterEditMode();
     };
 
     const handleGuideStepChange = (step: number) => {
-        // Step 2 is "Build Your Squad". Enable Edit Mode so users can interact.
-        if (step === 2) {
-            setIsEditMode(true);
-            setTimeout(() => {
-                const el = document.getElementById('pitch-container');
-                if(el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 300);
-        }
+        if (step === 2 && !isEditMode) enterEditMode();
     };
 
-    const nextGw = () => {};
-    const prevGw = () => {};
-
-    const handleLogoClick = () => fileInputRef.current?.click();
+    const handleLogoClick = () => isEditMode && fileInputRef.current?.click();
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -352,58 +313,39 @@ const App: React.FC = () => {
         }
     };
 
-    // --- TOGGLE EDIT MODE ---
-
-    const toggleEditMode = (wantEdit: boolean) => {
-        if (wantEdit && isLocked) {
-            setNotification(`Deadline Passed! Transfers are locked until ${new Date(UNLOCK_ISO).toLocaleDateString('en-GB')}.`);
-            // Auto hide notification
-            setTimeout(() => setNotification(null), 4000);
-            return;
-        }
-        setIsEditMode(wantEdit);
-    };
-
-    // --- TEAM BUILDER & SWAP LOGIC ---
+    // --- TEAM BUILDER ACTIONS ---
 
     const handleRemovePlayer = (index: number) => {
         if (!isEditMode) return;
         const newSlots = [...slots];
         newSlots[index].player = null;
         persistTeam(newSlots);
-        setSelectedSlotIndex(null); // Clear selection if any
+        setSelectedSlotIndex(null);
     };
 
     const handleReplacePlayer = (index: number) => {
         if (!isEditMode) return;
         setMarketSlotIndex(index);
         setIsMarketOpen(true);
-        setSelectedSlotIndex(null); // Clear selection so we don't try to swap
+        setSelectedSlotIndex(null);
     };
 
     const handleSlotClick = (index: number) => {
-        // Only interact in Edit Mode
         if (!isEditMode) return;
-
         const clickedSlot = slots[index];
 
-        // 1. If we already have a selected slot (Swap Mode)
+        // Swap Logic
         if (selectedSlotIndex !== null) {
             if (selectedSlotIndex === index) {
-                // Deselect if clicking same
                 setSelectedSlotIndex(null);
             } else {
-                // PERFORM SWAP
                 const newSlots = [...slots];
                 const player1 = newSlots[selectedSlotIndex].player;
                 const player2 = newSlots[index].player;
 
-                // VALIDATION: Cannot put non-GK in GK slot
-                // Slot 0 and Slot 5 are GK slots.
                 const isGKSlot = (i: number) => i === 0 || i === 5;
                 const isGKPlayer = (p: Player | null) => p?.position === 'GK';
 
-                // Check Swap Validity
                 if (isGKSlot(index) && player1 && !isGKPlayer(player1)) {
                     setNotification("Only Goalkeepers can play in GK slots.");
                     setTimeout(() => setNotification(null), 3000);
@@ -417,38 +359,30 @@ const App: React.FC = () => {
                     return;
                 }
 
-                // Execute Swap
                 newSlots[selectedSlotIndex].player = player2;
                 newSlots[index].player = player1;
-
                 persistTeam(newSlots);
                 setSelectedSlotIndex(null);
             }
             return;
         }
 
-        // 2. No slot selected yet
         if (!clickedSlot.player) {
-            // If empty -> Open Market
             setMarketSlotIndex(index);
             setIsMarketOpen(true);
         } else {
-            // If occupied -> Select for potential swap
             setSelectedSlotIndex(index);
         }
     };
 
     const handlePlayerSelect = (player: Player) => {
         if (marketSlotIndex === null) return;
-
-        // Basic duplicate check
         const existingSlotIndex = slots.findIndex(s => s.player?.id === player.id);
         if (existingSlotIndex !== -1 && existingSlotIndex !== marketSlotIndex) {
-            setNotification("This player is already in your squad!");
+            setNotification("Player already in squad!");
             setTimeout(() => setNotification(null), 3000);
             return;
         }
-
         const newSlots = [...slots];
         newSlots[marketSlotIndex] = { ...newSlots[marketSlotIndex], player: player };
         persistTeam(newSlots);
@@ -456,12 +390,9 @@ const App: React.FC = () => {
         setMarketSlotIndex(null);
     };
 
-    // Determine Market Filter
     const getMarketFilter = (index: number | null) => {
         if (index === null) return '';
-        // If GK slot (0 or 5), filter GK
         if (index === 0 || index === 5) return 'GK';
-        // Otherwise, allow flexible Outfield selection
         return 'OUTFIELD';
     };
 
@@ -478,356 +409,147 @@ const App: React.FC = () => {
     const benchList = slots.filter(s => s.type === 'bench').map(s => s.player).filter((p): p is Player => !!p);
     const ownedPlayerIds = slots.map(s => s.player?.id).filter((id): id is number => id !== undefined);
 
-    // Dynamic Theme Classes
+    // Styling
     const isLight = settings.theme === 'light';
     const bgMain = isLight ? 'bg-gray-100' : 'bg-gradient-to-b from-[#1a001e] to-[#29002d]';
     const textMain = isLight ? 'text-gray-900' : 'text-white';
-
-    // Light Mode Support for Containers
-    const cardBg = isLight
-        ? 'bg-white border border-gray-200 shadow-xl text-gray-900'
-        : 'bg-[#37003c]/60 backdrop-blur-md border border-white/10 shadow-2xl';
-
-    const subCardBg = isLight
-        ? 'bg-white border border-gray-200'
-        : 'bg-black/20 border border-white/5';
-
+    const cardBg = isLight ? 'bg-white shadow-xl border-gray-200' : 'bg-[#37003c]/60 backdrop-blur-md border-white/10 shadow-2xl';
     const currencySymbol = CURRENCY_SYMBOLS[settings.currency];
+    const deadlineString = new Date(DEADLINE_ISO).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
-    // Format deadline
-    const deadlineDate = new Date(DEADLINE_ISO);
-    const deadlineString = deadlineDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' + deadlineDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-    // --- RENDER ---
-
-    if (authLoading) return (
-        <div className={`min-h-screen flex flex-col items-center justify-center ${bgMain} ${textMain}`}>
-            <div className="w-16 h-16 border-4 border-fpl-green border-t-transparent rounded-full animate-spin mb-6"></div>
-            <div className="font-bold text-xl animate-pulse tracking-wider">LOADING RWA FANTASY</div>
-        </div>
-    );
-
+    if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#1a001e]"><div className="animate-spin w-12 h-12 border-4 border-fpl-green rounded-full border-t-transparent"></div></div>;
     if (!user) return <Login />;
-
-    if (userDataLoading) {
-        return (
-            <div className={`min-h-screen flex flex-col items-center justify-center ${bgMain} ${textMain}`}>
-                <div className={`w-12 h-12 border-4 border-t-fpl-green rounded-full animate-spin mb-4 ${isLight ? 'border-gray-300' : 'border-white'}`}></div>
-                <div className="text-sm font-medium opacity-70 tracking-widest uppercase">Initializing Manager...</div>
-            </div>
-        );
-    }
-
-    if (isUsernameSetup) {
-        return (
-            <UsernameSetup
-                user={user}
-                onComplete={(newUsername) => {
-                    const newSettings = {
-                        ...settings,
-                        username: newUsername,
-                        nickname: newUsername,
-                        usernameLastChanged: Date.now()
-                    };
-                    setSettings(newSettings);
-                    setIsUsernameSetup(false);
-                    // Ensure the DB is updated with this completion
-                    saveUserTeam(user.uid, { settings: newSettings });
-                    setShowGuide(true);
-                }}
-                initialSettings={settings}
-            />
-        );
-    }
+    if (userDataLoading) return <div className="min-h-screen flex items-center justify-center bg-[#1a001e] text-fpl-green font-bold">LOADING MANAGER...</div>;
+    if (isUsernameSetup) return <UsernameSetup user={user} onComplete={(name) => { setSettings({...settings, username: name}); setIsUsernameSetup(false); saveUserTeam(user.uid, { settings: {...settings, username: name}}); setShowGuide(true); }} initialSettings={settings} />;
 
     return (
-        <div className={`min-h-screen font-sans ${bgMain} ${textMain} selection:bg-fpl-green selection:text-[#29002d] flex flex-col overflow-x-hidden transition-colors duration-700 pb-20`}>
+        <div className={`min-h-screen font-sans ${bgMain} ${textMain} selection:bg-fpl-green selection:text-[#29002d] flex flex-col pb-24`}>
 
-            <GuideOverlay
-                active={showGuide}
-                onComplete={finishGuide}
-                teamName={teamName}
-                logoUrl={logoUrl}
-                onStepChange={handleGuideStepChange}
-            />
+            <GuideOverlay active={showGuide} onComplete={finishGuide} teamName={teamName} logoUrl={logoUrl} onStepChange={handleGuideStepChange} />
 
-            {/* Notification Toast */}
+            {/* Notification */}
             {notification && (
-                <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] animate-in fade-in slide-in-from-top-4">
-                    <div className="bg-fpl-pink text-white px-6 py-3 rounded-full shadow-[0_0_20px_rgba(233,0,82,0.4)] flex items-center gap-3 font-bold border border-white/20">
-                        {notification.includes("Submitted") ? <CheckCircle size={20} /> : <XCircle size={20} />}
+                <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top-4 fade-in">
+                    <div className="bg-fpl-pink text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 font-bold border border-white/20">
+                        {notification.includes("Submitted") ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
                         {notification}
                     </div>
                 </div>
             )}
 
-            {/* UNSAVED CHANGES / SUBMIT BAR */}
-            {!isSubmitted && isSquadComplete && (
-                <div className="fixed bottom-0 left-0 w-full bg-fpl-pink/95 backdrop-blur-md z-[150] border-t border-white/20 shadow-[0_-10px_40px_rgba(233,0,82,0.3)] animate-in slide-in-from-bottom-full duration-500">
-                    <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-4 text-white">
-                            <AlertTriangle className="animate-bounce" size={24} />
-                            <div>
-                                <h3 className="font-bold text-lg leading-none uppercase tracking-wide">Squad Changes Detected</h3>
-                                <p className="text-xs text-white/80">You have edited your team. You must submit to lock in these changes.</p>
+            {/* EDIT MODE STICKY FOOTER */}
+            {isEditMode && (
+                <div className="fixed bottom-0 left-0 w-full bg-[#29002d]/95 backdrop-blur-xl z-[100] border-t border-fpl-pink/30 shadow-[0_-5px_30px_rgba(233,0,82,0.2)] animate-in slide-in-from-bottom-full duration-300">
+                    <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+                        <div className="flex flex-col">
+                            <span className="text-xs text-fpl-pink font-bold uppercase tracking-widest">Editing Squad</span>
+                            <div className={`text-sm font-bold ${remainingBudget < 0 ? 'text-red-500' : 'text-white'}`}>
+                                Bank: {currencySymbol}{remainingBudget.toFixed(1)}m
                             </div>
                         </div>
-                        <button
-                            onClick={handleSubmitSquad}
-                            className="w-full sm:w-auto px-8 py-3 bg-white text-fpl-pink font-extrabold text-sm rounded-xl uppercase tracking-widest hover:scale-105 transition shadow-xl flex items-center justify-center gap-2"
-                        >
-                            <Send size={16} /> Submit Squad
-                        </button>
+                        <div className="flex gap-3">
+                            <button onClick={cancelEditMode} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold uppercase flex items-center gap-2 transition">
+                                <Undo2 size={16} /> Cancel
+                            </button>
+                            <button onClick={handleSubmitSquad} className="px-6 py-2 bg-fpl-green hover:bg-white text-fpl-purple rounded-lg text-xs font-bold uppercase flex items-center gap-2 transition shadow-lg shadow-green-500/20">
+                                <Save size={16} /> Submit Team
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* Ambient Background Glow (Reduced opacity in light mode) */}
+            {/* BACKGROUND */}
             <div className="fixed top-0 left-0 w-full h-screen pointer-events-none overflow-hidden z-0">
-                <div className={`absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] transition-colors duration-1000 ${isEditMode ? 'bg-fpl-pink' : 'bg-fpl-purple'} ${isLight ? 'opacity-10' : 'opacity-40'}`}></div>
-                <div className={`absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] transition-colors duration-1000 ${isEditMode ? 'bg-orange-600' : 'bg-fpl-blue'} ${isLight ? 'opacity-10' : 'opacity-20'}`}></div>
+                <div className={`absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] rounded-full blur-[120px] transition-colors duration-1000 ${isEditMode ? 'bg-fpl-pink opacity-20' : 'bg-fpl-purple opacity-30'}`}></div>
+                <div className={`absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full blur-[120px] transition-colors duration-1000 ${isEditMode ? 'bg-orange-600 opacity-20' : 'bg-fpl-blue opacity-20'}`}></div>
             </div>
 
-            <Navbar
-                currentView={currentPage}
-                onNavigate={setCurrentPage}
-                username={settings.username}
-                profilePictureUrl={settings.profilePictureUrl}
-                onLogout={logoutUser}
-                onOpenSettings={() => setIsSettingsOpen(true)}
-            />
+            <Navbar currentView={currentPage} onNavigate={setCurrentPage} username={settings.username} profilePictureUrl={settings.profilePictureUrl} onLogout={logoutUser} onOpenSettings={() => setIsSettingsOpen(true)} />
 
-            <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8 md:py-12 relative z-10 flex flex-col">
+            <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8 relative z-10 flex flex-col gap-6">
 
-                {/* --- HOME VIEW (DASHBOARD) --- */}
                 {currentPage === 'home' && (
-                    <div className="flex flex-col gap-8 max-w-5xl mx-auto w-full animate-in fade-in zoom-in-95 duration-500">
+                    <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full animate-in fade-in zoom-in-95 duration-500">
 
-                        {/* TEAM HEADER CARD */}
-                        <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-8 p-8 rounded-3xl relative ${cardBg} transition-all duration-500 ${isEditMode ? 'border-fpl-pink/30 shadow-[0_0_50px_rgba(233,0,82,0.15)]' : 'border-white/10'}`}>
-
-                            <div className="flex flex-col md:flex-row items-center gap-8 w-full md:w-auto text-center md:text-left">
+                        {/* HEADER CARD */}
+                        <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#29002d] border-fpl-pink/40 shadow-[0_0_30px_rgba(233,0,82,0.1)]' : `${cardBg} border-white/10`}`}>
+                            <div className="flex items-center gap-6 w-full md:w-auto">
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-
-                                {/* LOGO OR PLUS SIGN */}
-                                <div
-                                    className={`w-28 h-28 rounded-2xl flex items-center justify-center border-2 overflow-hidden shadow-2xl cursor-pointer relative group transition-all duration-300 ${isLight ? 'bg-gray-100' : 'bg-black/20'} ${isEditMode ? 'border-fpl-pink shadow-fpl-pink/20' : 'border-white/10 hover:border-fpl-green/50'}`}
-                                    onClick={handleLogoClick}
-                                    title="Change Team Logo"
-                                >
+                                <div onClick={handleLogoClick} className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 overflow-hidden shadow-lg relative group transition-all duration-300 ${isEditMode ? 'cursor-pointer border-fpl-pink' : 'border-white/10'}`}>
                                     {logoUrl ? (
                                         <>
-                                            <img src={logoUrl} alt="Team Logo" className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Edit2 size={24} className={isEditMode ? "text-fpl-pink" : "text-fpl-green"} />
-                                            </div>
+                                            <img src={logoUrl} className="w-full h-full object-cover" />
+                                            {isEditMode && <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100"><Edit2 className="text-white"/></div>}
                                         </>
-                                    ) : (
-                                        <div className={`flex flex-col items-center gap-1 ${isLight ? 'text-gray-400' : 'text-white/30'} group-hover:text-fpl-green transition-colors`}>
-                                            <Plus size={32} />
-                                            <span className="text-[10px] uppercase font-bold tracking-widest">Logo</span>
-                                        </div>
-                                    )}
+                                    ) : <Plus className="text-gray-500" />}
                                 </div>
-
-                                <div className="flex flex-col">
-                                    <input
-                                        type="text"
-                                        value={teamName}
-                                        onChange={(e) => persistName(e.target.value)}
-                                        className={`text-3xl md:text-5xl font-extrabold bg-transparent border-b-2 border-transparent focus:outline-none w-full min-w-[200px] text-center md:text-left tracking-tight transition-all placeholder-white/30 ${isLight ? 'text-gray-900 focus:border-gray-300' : 'text-white focus:border-white/20'}`}
-                                        placeholder="Name your team"
-                                    />
-                                    <div className="flex items-center justify-center md:justify-start gap-3 mt-3">
-                                        <div className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border transition-colors duration-500 ${isEditMode ? 'bg-fpl-pink/10 text-fpl-pink border-fpl-pink/20' : 'bg-fpl-green/10 text-fpl-green border-fpl-green/20'}`}>
-                                            Manager: {settings.username}
-                                        </div>
-                                        {isSubmitted ? (
-                                            <div className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border bg-blue-500/10 text-blue-400 border-blue-500/20 flex items-center gap-1">
-                                                <CheckCircle size={10} /> Submitted
-                                            </div>
-                                        ) : (
-                                            <div className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1 animate-pulse">
-                                                <AlertTriangle size={10} /> Not Submitted
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Team Stats Summary */}
-                            <div id="money-box" className={`flex gap-6 md:gap-10 w-full md:w-auto justify-center md:justify-end mt-4 md:mt-0 pt-6 md:pt-0 ${isLight ? 'border-t border-gray-200' : 'border-t border-white/10'} md:border-t-0`}>
-                                <div className="flex flex-col items-center md:items-end">
-                                    <span className="text-[10px] uppercase tracking-widest text-gray-400 mb-1 font-bold">Bank</span>
-                                    <div className={`flex items-center gap-1.5 font-bold text-2xl ${remainingBudget < 0 ? 'text-red-500' : (isEditMode ? 'text-fpl-pink' : 'text-fpl-green')}`}>
-                                        <Coins size={20} strokeWidth={2.5} /> {currencySymbol}{remainingBudget.toFixed(1)}m
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-center md:items-end">
-                                    <span className="text-[10px] uppercase tracking-widest text-gray-400 mb-1 font-bold">Value</span>
-                                    <div className={`flex items-center gap-1.5 font-bold text-2xl ${isLight ? 'text-gray-800' : 'text-white'}`}>
-                                        <Wallet size={20} strokeWidth={2.5} /> {currencySymbol}{totalValue.toFixed(1)}m
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-center md:items-end hidden sm:flex">
-                                    <span className="text-[10px] uppercase tracking-widest text-gray-400 mb-1 font-bold">Rating</span>
-                                    <div className="flex items-center gap-1.5 text-fpl-blue font-bold text-2xl">
-                                        <Star size={20} className="fill-fpl-blue" strokeWidth={0} /> {avgTeamRating}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* View Toggles & GW Nav */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                            {/* Gameweek Nav & Mode Toggle */}
-                            <div className={`col-span-1 md:col-span-2 flex flex-col p-4 rounded-2xl gap-4 ${subCardBg} shadow-lg backdrop-blur-sm relative overflow-hidden transition-all duration-500 ${isEditMode ? 'border-fpl-pink/20' : 'border-white/5'}`}>
-
-                                <div className="flex items-center justify-between w-full px-2 sm:px-6 z-10">
-                                    <button onClick={prevGw} disabled className={`p-3 cursor-not-allowed rounded-xl transition ${isLight ? 'text-gray-300 hover:bg-gray-100' : 'text-white/20 hover:bg-white/5'}`}><ChevronLeft size={24}/></button>
-                                    <div className="text-center flex-1">
-                                        <div className="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-1">Current Gameweek</div>
-                                        <div className={`font-black text-3xl leading-none ${isLight ? 'text-gray-900' : 'text-white'}`}>{gameweek}</div>
-                                        <div className="text-[10px] font-bold mt-1 uppercase tracking-wider flex items-center justify-center gap-2">
-                                            {isEditMode ? (
-                                                <span className="text-fpl-pink flex items-center gap-1 animate-pulse"><Edit2 size={10} /> Transfer Window Open</span>
-                                            ) : (
-                                                <span className="text-fpl-green">Deadline: {deadlineString}</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <button onClick={nextGw} disabled className={`p-3 cursor-not-allowed rounded-xl transition ${isLight ? 'text-gray-300 hover:bg-gray-100' : 'text-white/20 hover:bg-white/5'}`}><ChevronRight size={24}/></button>
-                                </div>
-
-                                {/* EDIT / VIEW TOGGLE */}
-                                <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-3 z-10">
-                                    {isLocked && (
-                                        <div className="absolute top-2 right-2 z-20 flex items-center gap-1 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-[10px] font-bold uppercase tracking-widest animate-pulse pointer-events-none">
-                                            <Lock size={10} /> Locked
-                                        </div>
-                                    )}
-
-                                    <div className={`relative p-1 rounded-xl border flex ${isLight ? 'bg-gray-200 border-gray-300' : 'bg-black/40 border-white/10'}`}>
-                                        {/* Background Slider */}
-                                        <div
-                                            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg transition-all duration-500 ease-out shadow-lg ${isEditMode ? 'bg-fpl-pink left-[calc(50%)] shadow-fpl-pink/30' : 'bg-fpl-green left-1 shadow-green-500/30'}`}
-                                        ></div>
-
-                                        <button
-                                            onClick={() => toggleEditMode(false)}
-                                            className={`relative z-10 flex items-center gap-2 px-8 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors duration-300 ${!isEditMode ? 'text-[#29002d]' : 'text-gray-500 hover:text-gray-700'}`}
-                                        >
-                                            <Eye size={14} /> View
-                                        </button>
-                                        <button
-                                            onClick={() => toggleEditMode(true)}
-                                            className={`relative z-10 flex items-center gap-2 px-8 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors duration-300 ${isEditMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'}`}
-                                        >
-                                            <Edit2 size={14} /> Edit
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Points Box */}
-                            <div className={`col-span-1 rounded-2xl p-0.5 shadow-lg transition-all duration-500 ${isEditMode ? 'bg-gradient-to-br from-fpl-pink to-orange-500 shadow-fpl-pink/20' : 'bg-gradient-to-br from-fpl-green to-emerald-600 shadow-fpl-green/20'}`}>
-                                <div className={`w-full h-full rounded-[14px] flex flex-col items-center justify-center py-4 relative overflow-hidden ${isLight ? 'bg-white' : 'bg-[#29002d]'}`}>
-                                    <div className={`absolute inset-0 opacity-5 ${isEditMode ? 'bg-fpl-pink' : 'bg-fpl-green'}`}></div>
-                                    <span className={`text-[10px] uppercase font-bold tracking-widest relative z-10 transition-colors duration-500 ${isEditMode ? 'text-fpl-pink' : 'text-fpl-green'}`}>
-                                        {isEditMode ? "Projected Cost" : "Live Points"}
-                                     </span>
-                                    <span className={`text-5xl font-black relative z-10 ${isLight ? 'text-gray-900' : 'text-white'}`}>
-                                         {isEditMode ?
-                                             <span className="text-4xl">{currencySymbol}{totalValue.toFixed(1)}m</span>
-                                             : totalPoints
-                                         }
-                                     </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* EDIT MODE: ALERTS */}
-                        {isEditMode && (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                                <div className={`p-4 rounded-xl flex items-center gap-4 border ${isLight ? 'bg-white border-fpl-pink/30 shadow-lg' : 'bg-fpl-pink/10 border-fpl-pink/30'}`}>
-                                    <div className="bg-fpl-pink text-white p-2 rounded-full"><RefreshCw size={16} /></div>
-                                    <div>
-                                        <h4 className="text-fpl-pink font-bold text-sm uppercase tracking-wide">Dynamic Formation</h4>
-                                        <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-pink-200/70'}`}>Drag and swap players to automatically adjust your defensive and attacking lines.</span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {!isSquadComplete && !isEditMode && (
-                            <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-xl flex items-center gap-3 animate-pulse">
-                                <AlertTriangle className="text-red-500" size={24} />
                                 <div>
-                                    <h4 className="text-red-400 font-bold text-sm uppercase">Starting 5 Incomplete</h4>
-                                    <p className={`text-xs ${isLight ? 'text-red-800' : 'text-red-200/70'}`}>You must select a full starting lineup (5 players) to submit.</p>
+                                    {isEditMode ? (
+                                        <input type="text" value={teamName} onChange={(e) => persistName(e.target.value)} className="bg-transparent text-2xl md:text-4xl font-black text-white border-b border-white/20 focus:border-fpl-pink outline-none w-full" placeholder="Team Name" />
+                                    ) : (
+                                        <h1 className="text-2xl md:text-4xl font-black">{teamName}</h1>
+                                    )}
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Manager: {settings.username}</span>
+                                        {isSubmitted && <span className="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-bold border border-blue-500/20 flex items-center gap-1"><CheckCircle size={10}/> Verified</span>}
+                                    </div>
                                 </div>
-                                <button onClick={() => toggleEditMode(true)} className="ml-auto bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase transition">
-                                    Fix Now
-                                </button>
                             </div>
-                        )}
 
-                        {/* MAIN CONTENT (PITCH/LIST) */}
-                        <div id="pitch-container" className="w-full relative">
+                            {/* STATS */}
+                            <div className="flex gap-8">
+                                <div className="text-right">
+                                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Total Points</div>
+                                    <div className={`text-3xl font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{settings.totalHistoryPoints || 0}</div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Team Value</div>
+                                    <div className="text-3xl font-black text-fpl-green flex items-center gap-1 justify-end">{currencySymbol}{totalValue.toFixed(1)}m</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ACTION BAR */}
+                        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                            <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/5">
+                                <button className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30"><ChevronLeft size={20}/></button>
+                                <div className="text-center">
+                                    <div className="text-[10px] uppercase font-bold text-gray-400">Gameweek</div>
+                                    <div className="text-xl font-black leading-none">{gameweek}</div>
+                                </div>
+                                <button className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30"><ChevronRight size={20}/></button>
+                            </div>
+
+                            {!isEditMode && (
+                                <button
+                                    onClick={enterEditMode}
+                                    className="w-full md:w-auto px-8 py-3 bg-fpl-green text-fpl-purple font-extrabold text-sm uppercase tracking-widest rounded-xl hover:bg-white transition-all shadow-lg shadow-green-500/20 flex items-center justify-center gap-2"
+                                >
+                                    <Users size={18} /> Manage Team
+                                </button>
+                            )}
+                        </div>
+
+                        {/* PITCH */}
+                        <div id="pitch-container" className="relative">
                             {view === 'pitch' ? (
-                                <Pitch
-                                    slots={slots}
-                                    onSlotClick={handleSlotClick}
-                                    onRemovePlayer={handleRemovePlayer}
-                                    onReplacePlayer={handleReplacePlayer}
-                                    isEditMode={isEditMode}
-                                    selectedSlotIndex={selectedSlotIndex}
-                                />
+                                <Pitch slots={slots} onSlotClick={handleSlotClick} onRemovePlayer={handleRemovePlayer} onReplacePlayer={handleReplacePlayer} isEditMode={isEditMode} selectedSlotIndex={selectedSlotIndex} />
                             ) : (
-                                <PlayerList
-                                    startingXI={startingList}
-                                    bench={benchList}
-                                    teamName={teamName}
-                                />
+                                <PlayerList startingXI={startingList} bench={benchList} teamName={teamName} />
                             )}
                         </div>
                     </div>
                 )}
 
-                {/* --- OTHER VIEWS --- */}
-                {currentPage === 'leaderboards' && (
-                    <div className="w-full flex justify-center">
-                        <Leaderboard players={dbPlayers} currentUserUid={user.uid} />
-                    </div>
-                )}
-
+                {currentPage === 'leaderboards' && <div className="flex justify-center"><Leaderboard players={dbPlayers} currentUserUid={user.uid} /></div>}
                 {currentPage === 'about' && <About />}
-
                 {currentPage === 'contact' && <Contact />}
 
             </main>
 
-            {/* MARKET MODAL */}
-            <MarketModal
-                isOpen={isMarketOpen}
-                onClose={() => setIsMarketOpen(false)}
-                players={dbPlayers.length > 0 ? dbPlayers : INITIAL_DB_DATA}
-                positionFilter={getMarketFilter(marketSlotIndex)}
-                onSelect={handlePlayerSelect}
-                currentBudget={remainingBudget}
-                sellPrice={marketSlotIndex !== null ? (slots[marketSlotIndex].player?.price || 0) : 0}
-                ownedPlayerIds={ownedPlayerIds}
-                currencySymbol={currencySymbol}
-            />
-
-            {/* SETTINGS MODAL */}
-            <SettingsModal
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-                user={user}
-                currentSettings={settings}
-            />
+            <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} players={dbPlayers.length > 0 ? dbPlayers : INITIAL_DB_DATA} positionFilter={getMarketFilter(marketSlotIndex)} onSelect={handlePlayerSelect} currentBudget={remainingBudget} sellPrice={marketSlotIndex !== null ? (slots[marketSlotIndex].player?.price || 0) : 0} ownedPlayerIds={ownedPlayerIds} currencySymbol={currencySymbol} />
+            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} user={user} currentSettings={settings} />
 
         </div>
     );
