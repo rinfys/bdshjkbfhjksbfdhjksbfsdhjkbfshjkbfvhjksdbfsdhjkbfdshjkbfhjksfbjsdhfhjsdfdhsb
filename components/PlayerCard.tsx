@@ -99,9 +99,9 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
   const cursorClass = isEditMode ? 'cursor-pointer hover:scale-105' : 'cursor-default';
 
-  // W-28 is 7rem (112px), W-32 is 8rem (128px) - Making desktop cards significantly larger
-  const cardWidthClass = "w-[68px] md:w-32";
-  const avatarSizeClass = "w-10 h-10 md:w-24 md:h-24";
+  // Reverted to smaller compact sizes
+  const cardWidthClass = "w-[68px] md:w-28";
+  const avatarSizeClass = "w-10 h-10 md:w-16 md:h-16";
 
   if (!player) {
     return (
@@ -196,20 +196,20 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                 </button>
 
                 {/* Bottom Captain Actions */}
-                <div className="absolute bottom-14 right-0 flex flex-col gap-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute bottom-12 right-0 flex flex-col gap-1 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                       onClick={(e) => { e.stopPropagation(); onMakeCaptain?.(); }}
-                      className={`rounded-full p-2 shadow-lg border border-white/20 hover:scale-110 transition ${isCaptain ? 'bg-black text-yellow-400 border-yellow-400' : 'bg-gray-600 text-gray-300 hover:bg-black hover:text-yellow-400'}`}
+                      className={`rounded-full p-1.5 shadow-lg border border-white/20 hover:scale-110 transition ${isCaptain ? 'bg-black text-yellow-400 border-yellow-400' : 'bg-gray-600 text-gray-300 hover:bg-black hover:text-yellow-400'}`}
                       title="Make Captain"
                   >
-                    <Crown size={14} strokeWidth={3} fill={isCaptain ? "currentColor" : "none"} />
+                    <Crown size={12} strokeWidth={3} fill={isCaptain ? "currentColor" : "none"} />
                   </button>
                   <button
                       onClick={(e) => { e.stopPropagation(); onMakeViceCaptain?.(); }}
-                      className={`rounded-full p-2 shadow-lg border border-white/20 hover:scale-110 transition ${isViceCaptain ? 'bg-gray-200 text-[#0041C7] border-[#0041C7]' : 'bg-gray-600 text-gray-300 hover:bg-white hover:text-[#0041C7]'}`}
+                      className={`rounded-full p-1.5 shadow-lg border border-white/20 hover:scale-110 transition ${isViceCaptain ? 'bg-gray-200 text-[#0041C7] border-[#0041C7]' : 'bg-gray-600 text-gray-300 hover:bg-white hover:text-[#0041C7]'}`}
                       title="Make Vice-Captain"
                   >
-                    <span className="font-bold text-[10px] leading-none">V</span>
+                    <span className="font-bold text-[8px] leading-none">V</span>
                   </button>
                 </div>
               </div>
@@ -219,12 +219,12 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         {!isEditMode && (
             <>
               {isCaptain && (
-                  <div className={`absolute top-0 right-1 md:right-2 z-20 text-white rounded-full w-4 h-4 md:w-6 md:h-6 flex items-center justify-center text-[8px] md:text-[11px] font-bold border shadow-md ${isTripleCaptain ? 'bg-black border-white animate-pulse' : 'bg-black border-yellow-400'}`}>
+                  <div className={`absolute top-0 right-1 md:right-3 z-20 text-white rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center text-[8px] md:text-[10px] font-bold border shadow-md ${isTripleCaptain ? 'bg-black border-white animate-pulse' : 'bg-black border-yellow-400'}`}>
                     {isTripleCaptain ? 'TC' : 'C'}
                   </div>
               )}
               {isViceCaptain && (
-                  <div className="absolute top-0 right-1 md:right-2 z-20 bg-gray-500 text-white rounded-full w-4 h-4 md:w-6 md:h-6 flex items-center justify-center text-[8px] md:text-[11px] font-bold border border-gray-300 shadow-md">
+                  <div className="absolute top-0 right-1 md:right-3 z-20 bg-gray-500 text-white rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center text-[8px] md:text-[10px] font-bold border border-gray-300 shadow-md">
                     V
                   </div>
               )}
@@ -240,23 +240,23 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
           {avatarUrl ? (
               <img src={avatarUrl} alt={player.name} className="w-full h-full object-cover" />
           ) : (
-              <span className="text-white font-bold text-sm md:text-xl tracking-widest shadow-black drop-shadow-md">
+              <span className="text-white font-bold text-sm md:text-lg tracking-widest shadow-black drop-shadow-md">
                 {player.name.substring(0, 2).toUpperCase()}
             </span>
           )}
 
           {player.imageUrl && (
-              <div className="absolute bottom-0 right-0 w-4 h-4 md:w-7 md:h-7 rounded-full bg-white border border-black/10 flex items-center justify-center shadow-sm z-10 overflow-hidden">
+              <div className="absolute bottom-0 right-0 w-4 h-4 md:w-6 md:h-6 rounded-full bg-white border border-black/10 flex items-center justify-center shadow-sm z-10 overflow-hidden">
                 <img src={player.imageUrl} alt="Team" className="w-full h-full object-contain" />
               </div>
           )}
         </div>
 
         <div className="w-full pointer-events-none relative z-10">
-          <div className={`text-white text-[8px] md:text-[12px] font-medium text-center py-0.5 truncate border-t-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-t-sm px-0.5 ${isSelected ? 'bg-[#3ACBE8] text-[#0041C7]' : 'bg-[#0160C9]'}`}>
+          <div className={`text-white text-[8px] md:text-[11px] font-medium text-center py-0.5 truncate border-t-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-t-sm px-0.5 ${isSelected ? 'bg-[#3ACBE8] text-[#0041C7]' : 'bg-[#0160C9]'}`}>
             {player.name}
           </div>
-          <div className={`text-black text-[9px] md:text-[13px] font-bold text-center py-0.5 border-b-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-b-sm shadow-md flex justify-center items-center gap-1 transition-colors duration-300 ${isEditMode ? 'bg-[#3ACBE8] text-[#0041C7] border-[#3ACBE8]/50' : 'bg-white'}`}>
+          <div className={`text-black text-[9px] md:text-[12px] font-bold text-center py-0.5 border-b-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-b-sm shadow-md flex justify-center items-center gap-1 transition-colors duration-300 ${isEditMode ? 'bg-[#3ACBE8] text-[#0041C7] border-[#3ACBE8]/50' : 'bg-white'}`}>
             {isEditMode ? (
                 <span>£{player.price}</span>
             ) : (

@@ -55,7 +55,7 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
 
     const renderRow = (rowSlots: TeamSlot[]) => {
         if (rowSlots.length === 0) return null;
-        // Gap-1 on mobile for tightness, Gap-16 on Desktop for spacious "normal" look
+        // Gap-1 on mobile for tightness, Gap-16 on Desktop for spacious look
         return (
             <div className={`flex justify-center items-center w-full px-2 ${rowSlots.length === 1 ? 'gap-0' : 'gap-1 md:gap-16'}`}>
                 {rowSlots.map(slot => renderSlot(slot))}
@@ -65,8 +65,8 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
 
     return (
         <div className="w-full flex flex-col transition-all duration-700">
-            {/* Increased Aspect Ratio on MD to [16/11] for taller pitch, closer to 'normal' feel */}
-            <div className={`relative w-full aspect-[4/3] md:aspect-[16/11] overflow-hidden rounded-t-xl transition-all duration-700 ${pitchContainerClass}`}>
+            {/* Significantly increased vertical aspect ratio to [4/3] (0.75 ratio vs 0.56 ratio of 16/9) to fit rows comfortably */}
+            <div className={`relative w-full aspect-[4/3] md:aspect-[4/3] overflow-hidden rounded-t-xl transition-all duration-700 ${pitchContainerClass}`}>
 
                 <div className="absolute inset-0 pointer-events-none transition-all duration-700">
                     {isEditMode ? (
@@ -86,13 +86,14 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
                     )}
                 </div>
 
-                <div className="absolute inset-0 flex flex-col py-2 md:py-8 z-10">
-                    <div className="flex-1 flex items-start pt-2 justify-center">
+                {/* Use justify-evenly to spread the rows out vertically across the taller pitch */}
+                <div className="absolute inset-0 flex flex-col py-4 md:py-8 z-10 justify-evenly">
+                    <div className="flex items-center justify-center">
                         {renderSlot(gkSlot)}
                     </div>
-                    {defenders.length > 0 && <div className="flex-1 flex items-center justify-center">{renderRow(defenders)}</div>}
-                    {midAndEmpty.length > 0 && <div className="flex-1 flex items-center justify-center">{renderRow(midAndEmpty)}</div>}
-                    {attackers.length > 0 && <div className="flex-1 flex items-end pb-2 justify-center">{renderRow(attackers)}</div>}
+                    {defenders.length > 0 && <div className="flex items-center justify-center">{renderRow(defenders)}</div>}
+                    {midAndEmpty.length > 0 && <div className="flex items-center justify-center">{renderRow(midAndEmpty)}</div>}
+                    {attackers.length > 0 && <div className="flex items-center justify-center">{renderRow(attackers)}</div>}
                 </div>
             </div>
 
