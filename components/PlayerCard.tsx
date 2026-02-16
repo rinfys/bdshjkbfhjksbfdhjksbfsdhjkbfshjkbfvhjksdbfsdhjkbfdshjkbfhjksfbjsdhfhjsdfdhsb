@@ -37,11 +37,12 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
         if (d1.data?.[0]?.id) userId = d1.data[0].id;
       } catch (e) { /* Fail silent */ }
 
-      // Attempt B: Proxy if Local failed
+      // Attempt B: Proxy if Local failed (Using corsproxy.io)
       if (!userId) {
         try {
           const proxy = "https://corsproxy.io/?";
           const target = `https://users.roblox.com/v1/usernames/users`;
+          // Note: Roblox API expects POST for this endpoint
           const r2 = await fetch(proxy + encodeURIComponent(target), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -85,13 +86,14 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
   }, [player?.name]);
 
   const getTeamBgColor = (color: string) => {
+    // Mapping team colors to the trendy blue palette where possible, or keeping them distinct but muted
     switch(color) {
-      case 'red': return 'bg-red-600';
-      case 'blue': return 'bg-blue-600';
-      case 'sky': return 'bg-sky-400';
-      case 'green': return 'bg-green-600';
+      case 'sky': return 'bg-[#3ACBE8]'; // Picton
+      case 'blue': return 'bg-[#1CA3DE]'; // Battery
+      case 'purple': return 'bg-[#0041C7]'; // Zero
+      case 'green': return 'bg-emerald-500'; // Keep green for distinction
       case 'yellow': return 'bg-yellow-500';
-      case 'purple': return 'bg-purple-600';
+      case 'red': return 'bg-red-600';
       case 'claret': return 'bg-[#7a003c]';
       default: return 'bg-gray-600';
     }
@@ -108,16 +110,16 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
         >
           <div className={`w-16 h-16 md:w-20 md:h-20 flex items-center justify-center rounded-full border-2 mb-1 relative transition-all duration-500
             ${isEditMode
-              ? 'bg-fpl-pink/10 border-fpl-pink border-dashed animate-pulse group-hover:bg-fpl-pink/30'
+              ? 'bg-fpl-green/10 border-fpl-green border-dashed animate-pulse group-hover:bg-fpl-green/30'
               : 'bg-white/5 border-white/20 border-dashed'
           }
         `}>
-            <Plus className={`transition-colors duration-300 ${isEditMode ? 'text-fpl-pink' : 'text-white/30'}`} size={28} />
+            <Plus className={`transition-colors duration-300 ${isEditMode ? 'text-fpl-green' : 'text-white/30'}`} size={28} />
           </div>
 
           <div className="w-full max-w-[90px] md:max-w-[100px]">
             {isEditMode && (
-                <div className="bg-fpl-pink text-white text-[9px] font-bold text-center py-0.5 rounded-t-sm uppercase tracking-wider">
+                <div className="bg-fpl-green text-[#0041C7] text-[9px] font-bold text-center py-0.5 rounded-t-sm uppercase tracking-wider">
                   Add Player
                 </div>
             )}
@@ -137,7 +139,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
       >
         {/* Selected Indicator (for swapping) */}
         {isSelected && (
-            <div className="absolute inset-0 bg-fpl-green/20 rounded-full scale-110 animate-pulse z-0 blur-xl"></div>
+            <div className="absolute inset-0 bg-fpl-green/40 rounded-full scale-110 animate-pulse z-0 blur-xl"></div>
         )}
 
         {/* EDIT MODE CONTROLS */}
@@ -146,38 +148,25 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
               <button
                   onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
                   className="absolute top-0 left-3 z-30 bg-red-500 text-white rounded-full p-1 shadow-lg border border-white hover:bg-red-600 hover:scale-110 transition"
+                  title="Remove"
               >
                 <X size={10} strokeWidth={3} />
               </button>
 
               <button
                   onClick={(e) => { e.stopPropagation(); onReplace?.(); }}
-                  className="absolute top-0 right-3 z-30 bg-fpl-green text-black rounded-full p-1 shadow-lg border border-black/20 hover:bg-white hover:scale-110 transition"
+                  className="absolute top-0 right-3 z-30 bg-fpl-green text-[#0041C7] rounded-full p-1 shadow-lg border border-white/20 hover:bg-white hover:scale-110 transition"
+                  title="Replace"
               >
                 <ArrowRightLeft size={10} strokeWidth={3} />
               </button>
             </>
         )}
 
-        {/* C/V Indicators (View Mode Only) */}
-        {!isEditMode && (
-            <div className="absolute top-0 right-4 z-20 flex flex-col gap-1 pointer-events-none">
-              {player.isCaptain && (
-                  <div className="bg-black text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border border-white shadow-md">C</div>
-              )}
-              {player.isViceCaptain && (
-                  <div className="bg-black text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border border-white shadow-md">V</div>
-              )}
-              {player.warnings && (
-                  <div className="bg-yellow-400 text-black text-[10px] font-bold rounded-sm w-5 h-5 flex items-center justify-center border border-black/20 shadow-md">!</div>
-              )}
-            </div>
-        )}
-
         {/* Circle Avatar */}
         <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] overflow-hidden mb-1 relative shadow-lg transition-all duration-300 flex items-center justify-center z-10
             ${!avatarUrl ? getTeamBgColor(player.teamColor) : 'bg-black/40'} 
-            ${isSelected ? 'border-fpl-green shadow-[0_0_20px_rgba(0,255,135,0.6)]' : (isEditMode ? 'border-fpl-pink group-hover:shadow-[0_0_15px_rgba(233,0,82,0.5)]' : 'border-white/20')}
+            ${isSelected ? 'border-fpl-green shadow-[0_0_20px_rgba(58,203,232,0.6)]' : (isEditMode ? 'border-fpl-green group-hover:shadow-[0_0_15px_rgba(58,203,232,0.5)]' : 'border-white/20')}
       `}>
           {avatarUrl ? (
               <img src={avatarUrl} alt={player.name} className="w-full h-full object-cover" />
@@ -197,10 +186,10 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, positionLabel, onClick,
 
         {/* Name and Info Box */}
         <div className="w-full max-w-[90px] md:max-w-[100px] pointer-events-none relative z-10">
-          <div className={`text-white text-[10px] md:text-[11px] font-medium text-center py-0.5 truncate border-t-2 border-l-2 border-r-2 border-gray-400/30 rounded-t-sm px-1 ${isSelected ? 'bg-fpl-green text-[#29002d]' : 'bg-[#37003c]'}`}>
+          <div className={`text-white text-[10px] md:text-[11px] font-medium text-center py-0.5 truncate border-t-2 border-l-2 border-r-2 border-fpl-green/30 rounded-t-sm px-1 ${isSelected ? 'bg-fpl-green text-[#0041C7]' : 'bg-[#0160C9]'}`}>
             {player.name}
           </div>
-          <div className={`text-black text-[11px] md:text-[12px] font-bold text-center py-0.5 border-b-2 border-l-2 border-r-2 border-gray-400/30 rounded-b-sm shadow-md flex justify-center items-center gap-1 transition-colors duration-300 ${isEditMode ? 'bg-fpl-pink text-white border-fpl-pink/50' : 'bg-white'}`}>
+          <div className={`text-black text-[11px] md:text-[12px] font-bold text-center py-0.5 border-b-2 border-l-2 border-r-2 border-fpl-green/30 rounded-b-sm shadow-md flex justify-center items-center gap-1 transition-colors duration-300 ${isEditMode ? 'bg-fpl-green text-[#0041C7] border-fpl-green/50' : 'bg-white'}`}>
             {isEditMode ? (
                 <span>£{player.price}m</span>
             ) : (

@@ -12,7 +12,7 @@ import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 
 import { INITIAL_TEAM_SLOTS } from './constants';
-import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, AlertTriangle, Plus, RefreshCw, XCircle, CheckCircle, Send, Save, Undo2, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2, Wallet, Star, Coins, Lock, AlertTriangle, Plus, RefreshCw, XCircle, CheckCircle, Send, Save, Undo2, Users, LayoutDashboard } from 'lucide-react';
 import { Player, TeamSlot, UserSettings } from './types';
 import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA } from './firebase';
 import { User } from 'firebase/auth';
@@ -198,7 +198,7 @@ const App: React.FC = () => {
             document.body.style.backgroundColor = '#f3f4f6';
             document.body.style.color = '#1f2937';
         } else {
-            document.body.style.backgroundColor = '#1a001e';
+            document.body.style.backgroundColor = '#0041C7'; // Absolute Zero
             document.body.style.color = '#ffffff';
         }
     }, [settings.theme]);
@@ -206,11 +206,6 @@ const App: React.FC = () => {
     // --- LOGIC ---
 
     const persistTeam = (newSlots: TeamSlot[]) => {
-        // Only update local state here if in edit mode.
-        // We do NOT save to Firebase on every click in Edit Mode anymore to allow "Cancel".
-        // BUT to prevent data loss on refresh, we will autosave to a "draft" state implicitly
-        // by saving to Firebase but keeping isSubmitted false.
-
         const starters = newSlots.filter(s => s.type === 'starter');
         const startersFilled = starters.every(s => s.player !== null);
         const complete = startersFilled;
@@ -244,16 +239,12 @@ const App: React.FC = () => {
         // Revert to backup
         setSlots(backupSlots);
         setIsEditMode(false);
-        // We also need to restore the previous "isSubmitted" state if we reverted?
-        // This is tricky. Simplified: If they cancel, we revert slots in DB too.
+
+        // Restore slots in DB to backup
         if (user) {
             saveUserTeam(user.uid, {
                 slots: backupSlots,
-                // We assume if they cancel, we go back to whatever state they were in.
-                // Ideally we'd store the previous isSubmitted state too, but let's assume
-                // if they revert to a valid squad it might be submitted.
-                // For safety, let's keep isSubmitted as is (likely false if they edited).
-                // Actually, let's just revert slots.
+                // We leave isSubmitted as is (technically if they revert, they are back to whatever they were)
             });
         }
     };
@@ -411,19 +402,18 @@ const App: React.FC = () => {
 
     // Styling
     const isLight = settings.theme === 'light';
-    const bgMain = isLight ? 'bg-gray-100' : 'bg-gradient-to-b from-[#1a001e] to-[#29002d]';
+    const bgMain = isLight ? 'bg-gray-100' : 'bg-[#0041C7]'; // Absolute Zero Background
     const textMain = isLight ? 'text-gray-900' : 'text-white';
-    const cardBg = isLight ? 'bg-white shadow-xl border-gray-200' : 'bg-[#37003c]/60 backdrop-blur-md border-white/10 shadow-2xl';
+    const cardBg = isLight ? 'bg-white shadow-xl border-gray-200' : 'bg-[#0160C9]/80 backdrop-blur-md border-white/20 shadow-2xl'; // True Blue Card
     const currencySymbol = CURRENCY_SYMBOLS[settings.currency];
-    const deadlineString = new Date(DEADLINE_ISO).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
-    if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#1a001e]"><div className="animate-spin w-12 h-12 border-4 border-fpl-green rounded-full border-t-transparent"></div></div>;
+    if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7]"><div className="animate-spin w-12 h-12 border-4 border-fpl-green rounded-full border-t-transparent"></div></div>;
     if (!user) return <Login />;
-    if (userDataLoading) return <div className="min-h-screen flex items-center justify-center bg-[#1a001e] text-fpl-green font-bold">LOADING MANAGER...</div>;
+    if (userDataLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7] text-white font-bold animate-pulse">LOADING MANAGER...</div>;
     if (isUsernameSetup) return <UsernameSetup user={user} onComplete={(name) => { setSettings({...settings, username: name}); setIsUsernameSetup(false); saveUserTeam(user.uid, { settings: {...settings, username: name}}); setShowGuide(true); }} initialSettings={settings} />;
 
     return (
-        <div className={`min-h-screen font-sans ${bgMain} ${textMain} selection:bg-fpl-green selection:text-[#29002d] flex flex-col pb-24`}>
+        <div className={`min-h-screen font-sans ${bgMain} ${textMain} selection:bg-fpl-green selection:text-[#0041C7] flex flex-col pb-24`}>
 
             <GuideOverlay active={showGuide} onComplete={finishGuide} teamName={teamName} logoUrl={logoUrl} onStepChange={handleGuideStepChange} />
 
@@ -437,62 +427,71 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {/* EDIT MODE STICKY FOOTER */}
+            {/* EDIT MODE STICKY FOOTER - THE ONLY WAY OUT */}
             {isEditMode && (
-                <div className="fixed bottom-0 left-0 w-full bg-[#29002d]/95 backdrop-blur-xl z-[100] border-t border-fpl-pink/30 shadow-[0_-5px_30px_rgba(233,0,82,0.2)] animate-in slide-in-from-bottom-full duration-300">
+                <div className="fixed bottom-0 left-0 w-full bg-[#0160C9]/95 backdrop-blur-xl z-[100] border-t border-fpl-green/30 shadow-[0_-5px_30px_rgba(58,203,232,0.2)] animate-in slide-in-from-bottom-full duration-300">
                     <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
                         <div className="flex flex-col">
-                            <span className="text-xs text-fpl-pink font-bold uppercase tracking-widest">Editing Squad</span>
-                            <div className={`text-sm font-bold ${remainingBudget < 0 ? 'text-red-500' : 'text-white'}`}>
-                                Bank: {currencySymbol}{remainingBudget.toFixed(1)}m
+                             <span className="text-xs text-fpl-green font-bold uppercase tracking-widest flex items-center gap-1">
+                                 <Edit2 size={12} /> Editing Mode Active
+                             </span>
+                            <div className={`text-sm font-bold ${remainingBudget < 0 ? 'text-red-300' : 'text-white'}`}>
+                                Budget: {currencySymbol}{remainingBudget.toFixed(1)}m
                             </div>
                         </div>
                         <div className="flex gap-3">
-                            <button onClick={cancelEditMode} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold uppercase flex items-center gap-2 transition">
+                            <button onClick={cancelEditMode} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold uppercase flex items-center gap-2 transition border border-white/5">
                                 <Undo2 size={16} /> Cancel
                             </button>
-                            <button onClick={handleSubmitSquad} className="px-6 py-2 bg-fpl-green hover:bg-white text-fpl-purple rounded-lg text-xs font-bold uppercase flex items-center gap-2 transition shadow-lg shadow-green-500/20">
-                                <Save size={16} /> Submit Team
+                            <button onClick={handleSubmitSquad} className="px-6 py-2.5 bg-fpl-green hover:bg-white text-fpl-purple font-extrabold rounded-xl text-xs uppercase flex items-center gap-2 transition shadow-lg shadow-fpl-green/30 transform hover:scale-105">
+                                <Save size={16} /> Submit & Save
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* BACKGROUND */}
+            {/* AMBIENT BACKGROUND */}
             <div className="fixed top-0 left-0 w-full h-screen pointer-events-none overflow-hidden z-0">
-                <div className={`absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] rounded-full blur-[120px] transition-colors duration-1000 ${isEditMode ? 'bg-fpl-pink opacity-20' : 'bg-fpl-purple opacity-30'}`}></div>
-                <div className={`absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full blur-[120px] transition-colors duration-1000 ${isEditMode ? 'bg-orange-600 opacity-20' : 'bg-fpl-blue opacity-20'}`}></div>
+                <div className={`absolute top-[-20%] left-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 bg-fpl-green opacity-10`}></div>
+                <div className={`absolute bottom-[-20%] right-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 bg-fpl-blue opacity-15`}></div>
             </div>
 
-            <Navbar currentView={currentPage} onNavigate={setCurrentPage} username={settings.username} profilePictureUrl={settings.profilePictureUrl} onLogout={logoutUser} onOpenSettings={() => setIsSettingsOpen(true)} />
+            {/* NAVBAR (HIDDEN IN EDIT MODE) */}
+            {!isEditMode && (
+                <Navbar currentView={currentPage} onNavigate={setCurrentPage} username={settings.username} profilePictureUrl={settings.profilePictureUrl} onLogout={logoutUser} onOpenSettings={() => setIsSettingsOpen(true)} />
+            )}
 
             <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8 relative z-10 flex flex-col gap-6">
 
                 {currentPage === 'home' && (
                     <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full animate-in fade-in zoom-in-95 duration-500">
 
-                        {/* HEADER CARD */}
-                        <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#29002d] border-fpl-pink/40 shadow-[0_0_30px_rgba(233,0,82,0.1)]' : `${cardBg} border-white/10`}`}>
+                        {/* TEAM HEADER */}
+                        <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#0160C9] border-fpl-green/40 shadow-[0_0_30px_rgba(58,203,232,0.15)] scale-[1.01]' : `${cardBg}`}`}>
                             <div className="flex items-center gap-6 w-full md:w-auto">
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                                <div onClick={handleLogoClick} className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 overflow-hidden shadow-lg relative group transition-all duration-300 ${isEditMode ? 'cursor-pointer border-fpl-pink' : 'border-white/10'}`}>
+                                <div onClick={handleLogoClick} className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 overflow-hidden shadow-lg relative group transition-all duration-300 ${isEditMode ? 'cursor-pointer border-fpl-green bg-fpl-green/10' : 'border-white/10 bg-white/5'}`}>
                                     {logoUrl ? (
                                         <>
                                             <img src={logoUrl} className="w-full h-full object-cover" />
                                             {isEditMode && <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100"><Edit2 className="text-white"/></div>}
                                         </>
-                                    ) : <Plus className="text-gray-500" />}
+                                    ) : <Plus className="text-gray-400" />}
                                 </div>
                                 <div>
                                     {isEditMode ? (
-                                        <input type="text" value={teamName} onChange={(e) => persistName(e.target.value)} className="bg-transparent text-2xl md:text-4xl font-black text-white border-b border-white/20 focus:border-fpl-pink outline-none w-full" placeholder="Team Name" />
+                                        <input type="text" value={teamName} onChange={(e) => persistName(e.target.value)} className="bg-transparent text-2xl md:text-4xl font-black text-white border-b-2 border-fpl-green/50 focus:border-fpl-green outline-none w-full placeholder-white/30" placeholder="Team Name" />
                                     ) : (
-                                        <h1 className="text-2xl md:text-4xl font-black">{teamName}</h1>
+                                        <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight">{teamName}</h1>
                                     )}
                                     <div className="flex items-center gap-2 mt-2">
-                                        <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Manager: {settings.username}</span>
-                                        {isSubmitted && <span className="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-bold border border-blue-500/20 flex items-center gap-1"><CheckCircle size={10}/> Verified</span>}
+                                        <span className="text-xs font-bold uppercase tracking-wider text-gray-300 opacity-70">Manager: {settings.username}</span>
+                                        {isSubmitted ? (
+                                            <span className="text-[10px] bg-fpl-green/10 text-fpl-green px-2 py-0.5 rounded font-bold border border-fpl-green/20 flex items-center gap-1 uppercase tracking-wider"><CheckCircle size={10}/> Verified</span>
+                                        ) : (
+                                            <span className="text-[10px] bg-red-500/10 text-red-300 px-2 py-0.5 rounded font-bold border border-red-500/20 flex items-center gap-1 uppercase tracking-wider"><AlertTriangle size={10}/> Unsaved</span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -510,24 +509,30 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* ACTION BAR */}
+                        {/* DASHBOARD ACTION BAR */}
                         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                            <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/5">
-                                <button className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30"><ChevronLeft size={20}/></button>
-                                <div className="text-center">
+                            <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/5 shadow-inner">
+                                <button className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 transition"><ChevronLeft size={20}/></button>
+                                <div className="text-center px-2">
                                     <div className="text-[10px] uppercase font-bold text-gray-400">Gameweek</div>
                                     <div className="text-xl font-black leading-none">{gameweek}</div>
                                 </div>
-                                <button className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30"><ChevronRight size={20}/></button>
+                                <button className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 transition"><ChevronRight size={20}/></button>
                             </div>
 
+                            {/* MAIN ACTION BUTTON */}
                             {!isEditMode && (
                                 <button
                                     onClick={enterEditMode}
-                                    className="w-full md:w-auto px-8 py-3 bg-fpl-green text-fpl-purple font-extrabold text-sm uppercase tracking-widest rounded-xl hover:bg-white transition-all shadow-lg shadow-green-500/20 flex items-center justify-center gap-2"
+                                    className="w-full md:w-auto px-8 py-3.5 bg-fpl-green text-[#0041C7] font-extrabold text-sm uppercase tracking-widest rounded-xl hover:bg-white hover:scale-105 transition-all shadow-lg shadow-fpl-green/20 flex items-center justify-center gap-2 group"
                                 >
-                                    <Users size={18} /> Manage Team
+                                    <Users size={18} className="group-hover:rotate-6 transition-transform" /> Manage Team
                                 </button>
+                            )}
+                            {isEditMode && (
+                                <div className="flex items-center gap-2 text-fpl-green text-xs font-bold uppercase tracking-widest bg-fpl-green/10 px-4 py-3 rounded-xl border border-fpl-green/20 animate-pulse">
+                                    <LayoutDashboard size={16} /> Transfer Market Open
+                                </div>
                             )}
                         </div>
 
