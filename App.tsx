@@ -198,9 +198,11 @@ const App: React.FC = () => {
 
                 // Calculate points from matches
                 Object.values(fetchedMatches).forEach(match => {
+                    if (!match || !match.players || !match.summary) return;
+
                     // Find player in match stats (by username match)
                     const matchPlayerKey = Object.keys(match.players).find(key =>
-                        match.players[key].username.toLowerCase() === p.name.toLowerCase()
+                        match.players[key]?.username?.toLowerCase() === p.name.toLowerCase()
                     );
 
                     if (matchPlayerKey) {
@@ -215,14 +217,14 @@ const App: React.FC = () => {
                         // Lose: -2
                         if (isLoser) points -= 2;
                         // Goal: +2
-                        points += (stats.goals * 2);
+                        points += ((stats.goals || 0) * 2);
                         // Assist: +1
-                        points += (stats.assists * 1);
+                        points += ((stats.assists || 0) * 1);
                         // MVP: +4
                         if (stats.mvp) points += 4;
                         // GK Save: +1
                         if (p.position === 'GK') {
-                            points += (stats.saves * 1);
+                            points += ((stats.saves || 0) * 1);
                         }
                         // Defender Concede < 12: +6
                         // Assuming "Concede" refers to team goals conceded
