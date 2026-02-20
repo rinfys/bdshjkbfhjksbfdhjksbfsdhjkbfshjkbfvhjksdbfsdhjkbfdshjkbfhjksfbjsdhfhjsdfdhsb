@@ -166,6 +166,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                         </div>
                     </div>
 
+                    import { saveUserTeam, checkUsernameTaken, seedDatabase, INITIAL_DB_DATA } from '../firebase';
+
+                    // ... inside SettingsModal component ...
+
+                    const handleResetDb = async () => {
+                    if (confirm("Are you sure you want to reset the player database? This will update all player names and prices to the latest defaults.")) {
+                    await seedDatabase(INITIAL_DB_DATA, false);
+                    alert("Database reset complete.");
+                }
+                };
+
+                    // ... inside the return JSX, before the Save button ...
+
+                    <div className="pt-4 border-t border-white/10">
+                        <button
+                            onClick={handleResetDb}
+                            className="w-full py-2 text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-wider border border-red-500/30 rounded-lg hover:bg-red-500/10 transition"
+                        >
+                            Reset Player Database
+                        </button>
+                        <p className="text-[10px] text-gray-500 text-center mt-1">Use this if player names are outdated.</p>
+                    </div>
+
                     {error && (
                         <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-500 text-xs text-center font-bold">
                             {error}
