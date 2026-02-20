@@ -528,7 +528,7 @@ const App: React.FC = () => {
     if (isUsernameSetup) return <UsernameSetup user={user} onComplete={(name) => { setSettings({...settings, username: name}); setIsUsernameSetup(false); saveUserTeam(user.uid, { settings: {...settings, username: name}}); setShowGuide(true); }} initialSettings={settings} />;
 
     return (
-        <div className={`min-h-screen font-sans ${bgMain} ${textMain} selection:bg-[#3ACBE8] selection:text-[#0041C7] flex flex-col pb-24`}>
+        <div className={`min-h-screen font-sans ${isEditMode ? 'bg-[#1a0014]' : bgMain} ${textMain} selection:bg-[#3ACBE8] selection:text-[#0041C7] flex flex-col pb-24 transition-colors duration-700`}>
 
             <GuideOverlay active={showGuide} onComplete={finishGuide} teamName={teamName} logoUrl={logoUrl} onStepChange={handleGuideStepChange} />
             <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
@@ -568,6 +568,14 @@ const App: React.FC = () => {
             )}
 
             <div className="fixed top-0 left-0 w-full h-screen pointer-events-none overflow-hidden z-0">
+                {isEditMode && (
+                    <div className="absolute inset-0 z-0 opacity-20"
+                         style={{
+                             backgroundImage: 'radial-gradient(#e90052 1px, transparent 1px)',
+                             backgroundSize: '40px 40px'
+                         }}>
+                    </div>
+                )}
                 <div className={`absolute top-[-20%] left-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 ${isEditMode ? 'bg-[#e90052] opacity-20' : 'bg-[#3ACBE8] opacity-10'}`}></div>
                 <div className={`absolute bottom-[-20%] right-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 ${isEditMode ? 'bg-[#29002d] opacity-30' : 'bg-[#1CA3DE] opacity-15'}`}></div>
             </div>
