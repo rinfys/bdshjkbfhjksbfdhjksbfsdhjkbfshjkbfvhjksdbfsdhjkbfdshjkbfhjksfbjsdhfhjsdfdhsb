@@ -16,11 +16,11 @@ interface PitchProps {
 
 const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onReplacePlayer, onMakeCaptain, onMakeViceCaptain, isEditMode, selectedSlotIndex, activeChip }) => {
     const pitchContainerClass = isEditMode
-        ? "bg-[#004f70] border-4 border-fpl-pink/50 shadow-[0_0_40px_rgba(233,0,82,0.2)]"
+        ? "bg-[#29002d] border-4 border-[#e90052] shadow-[0_0_50px_rgba(233,0,82,0.4)] animate-pulse-slow"
         : "bg-pool-radial border-2 border-white/20 shadow-2xl";
 
     const overlayClass = isEditMode
-        ? "opacity-20 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:20px_20px]"
+        ? "opacity-30 bg-[linear-gradient(rgba(233,0,82,0.2)_1px,transparent_1px),linear-gradient(90deg,rgba(233,0,82,0.2)_1px,transparent_1px)] bg-[size:30px_30px]"
         : "opacity-40";
 
     const renderSlot = (slot: TeamSlot) => (
@@ -98,8 +98,8 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
                 </div>
             </div>
 
-            <div className={`rounded-b-xl border-x-2 border-b-2 p-2 md:p-6 mt-[-4px] z-10 relative shadow-inner transition-all duration-700 ${isEditMode ? 'bg-[#29002d] border-fpl-pink/50' : 'bg-gradient-to-b from-[#005f86] to-[#004f70] border-white/10'}`}>
-                <div className={`flex justify-center gap-2 md:gap-12 px-2 md:px-8 rounded-lg py-4 backdrop-blur-sm min-h-[80px] md:min-h-[120px] items-center transition-all duration-700 ${isEditMode ? 'bg-fpl-pink/5 border border-fpl-pink/20' : 'bg-black/20'} ${activeChip === 'benchBoost' ? 'ring-4 ring-[#3ACBE8] shadow-[0_0_30px_rgba(58,203,232,0.5)] bg-[#3ACBE8]/10' : ''}`}>
+            <div className={`rounded-b-xl border-x-2 border-b-2 p-2 md:p-6 mt-[-4px] z-10 relative shadow-inner transition-all duration-700 ${isEditMode ? 'bg-[#37003c] border-[#e90052]' : 'bg-gradient-to-b from-[#005f86] to-[#004f70] border-white/10'}`}>
+                <div className={`flex justify-center gap-2 md:gap-12 px-2 md:px-8 rounded-lg py-4 backdrop-blur-sm min-h-[80px] md:min-h-[120px] items-center transition-all duration-700 ${isEditMode ? 'bg-[#e90052]/10 border border-[#e90052]/30' : 'bg-black/20'} ${activeChip === 'benchBoost' ? 'ring-4 ring-[#3ACBE8] shadow-[0_0_30px_rgba(58,203,232,0.5)] bg-[#3ACBE8]/10' : ''}`}>
                     {[5,6,7].map(i => renderSlot(slots[i]))}
                 </div>
             </div>

@@ -501,18 +501,18 @@ const App: React.FC = () => {
                 disabled={isDisabled}
                 className={`relative overflow-hidden group rounded-xl p-2 md:p-3 flex flex-col items-center justify-center border transition-all duration-300 w-full min-h-[80px]
                     ${isActive
-                    ? 'bg-gradient-to-b from-[#3ACBE8] to-[#1CA3DE] border-white shadow-[0_0_20px_rgba(58,203,232,0.5)] scale-105 z-10'
+                    ? 'bg-gradient-to-b from-[#e90052] to-[#b3003e] border-white shadow-[0_0_20px_rgba(233,0,82,0.5)] scale-105 z-10'
                     : isDisabled
                         ? 'bg-black/20 border-white/5 opacity-40 grayscale cursor-not-allowed'
-                        : 'bg-[#29002d]/60 border-white/10 hover:border-white/30 hover:bg-[#29002d]'
+                        : 'bg-[#29002d]/60 border-white/10 hover:border-[#e90052]/50 hover:bg-[#29002d]'
                 }
                 `}
             >
                 {isActive && <div className="absolute top-1 right-2 w-2 h-2 bg-white rounded-full animate-ping"></div>}
-                <div className={`p-1.5 md:p-2 rounded-full mb-1 ${isActive ? 'bg-white text-[#0041C7]' : 'bg-[#0041C7] text-[#3ACBE8]'}`}>
+                <div className={`p-1.5 md:p-2 rounded-full mb-1 ${isActive ? 'bg-white text-[#e90052]' : 'bg-[#e90052] text-white'}`}>
                     <Icon size={16} className="md:w-5 md:h-5" />
                 </div>
-                <div className={`text-[8px] md:text-[10px] uppercase font-bold tracking-wider text-center leading-tight ${isActive ? 'text-[#0041C7]' : 'text-white'}`}>
+                <div className={`text-[8px] md:text-[10px] uppercase font-bold tracking-wider text-center leading-tight ${isActive ? 'text-white' : 'text-white'}`}>
                     {label}
                 </div>
                 {available <= 0 && !isActive && (
@@ -545,13 +545,13 @@ const App: React.FC = () => {
             )}
 
             {isEditMode && (
-                <div className="fixed bottom-0 left-0 w-full bg-[#0160C9]/95 backdrop-blur-xl z-[100] border-t border-[#3ACBE8]/30 shadow-[0_-5px_30px_rgba(58,203,232,0.2)] animate-in slide-in-from-bottom-full duration-300">
+                <div className="fixed bottom-0 left-0 w-full bg-[#29002d]/95 backdrop-blur-xl z-[100] border-t border-[#e90052]/50 shadow-[0_-5px_40px_rgba(233,0,82,0.3)] animate-in slide-in-from-bottom-full duration-300">
                     <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
                         <div className="flex flex-col">
-                             <span className="text-xs text-[#3ACBE8] font-bold uppercase tracking-widest flex items-center gap-1">
+                             <span className="text-xs text-[#e90052] font-bold uppercase tracking-widest flex items-center gap-1 animate-pulse">
                                  <Edit2 size={12} /> Editing GW {currentRealGameweek}
                              </span>
-                            <div className={`text-sm font-bold ${remainingBudget < 0 ? 'text-red-300' : 'text-white'}`}>
+                            <div className={`text-sm font-bold ${remainingBudget < 0 ? 'text-red-500' : 'text-white'}`}>
                                 Budget: {currencySymbol}{remainingBudget.toFixed(1)}m
                             </div>
                         </div>
@@ -559,7 +559,7 @@ const App: React.FC = () => {
                             <button onClick={cancelEditMode} className="px-3 py-2 md:px-5 md:py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold uppercase flex items-center gap-1 md:gap-2 transition border border-white/5">
                                 <Undo2 size={16} /> <span className="hidden md:inline">Cancel</span>
                             </button>
-                            <button onClick={handleSubmitSquad} className="px-4 py-2 md:px-6 md:py-2.5 bg-[#3ACBE8] hover:bg-white text-[#0041C7] font-extrabold rounded-xl text-xs uppercase flex items-center gap-1 md:gap-2 transition shadow-lg shadow-[#3ACBE8]/30 transform hover:scale-105">
+                            <button onClick={handleSubmitSquad} className="px-4 py-2 md:px-6 md:py-2.5 bg-[#e90052] hover:bg-white text-white hover:text-[#e90052] font-extrabold rounded-xl text-xs uppercase flex items-center gap-1 md:gap-2 transition shadow-lg shadow-[#e90052]/40 transform hover:scale-105">
                                 <Save size={16} /> Submit
                             </button>
                         </div>
@@ -568,8 +568,8 @@ const App: React.FC = () => {
             )}
 
             <div className="fixed top-0 left-0 w-full h-screen pointer-events-none overflow-hidden z-0">
-                <div className={`absolute top-[-20%] left-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 bg-[#3ACBE8] opacity-10`}></div>
-                <div className={`absolute bottom-[-20%] right-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 bg-[#1CA3DE] opacity-15`}></div>
+                <div className={`absolute top-[-20%] left-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 ${isEditMode ? 'bg-[#e90052] opacity-20' : 'bg-[#3ACBE8] opacity-10'}`}></div>
+                <div className={`absolute bottom-[-20%] right-[-20%] w-[70vw] h-[70vw] rounded-full blur-[150px] transition-colors duration-1000 ${isEditMode ? 'bg-[#29002d] opacity-30' : 'bg-[#1CA3DE] opacity-15'}`}></div>
             </div>
 
             {!isEditMode && (
@@ -591,10 +591,10 @@ const App: React.FC = () => {
                             </div>
                         )}
 
-                        <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-4 md:p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#0160C9] border-[#3ACBE8]/40 shadow-[0_0_30px_rgba(58,203,232,0.15)] scale-[1.01]' : `${cardBg}`}`}>
+                        <div id="team-header" className={`flex flex-col md:flex-row items-center justify-between gap-6 p-4 md:p-6 rounded-3xl border transition-all duration-500 ${isEditMode ? 'bg-[#29002d] border-[#e90052]/50 shadow-[0_0_40px_rgba(233,0,82,0.25)] scale-[1.01]' : `${cardBg}`}`}>
                             <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto">
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                                <div onClick={handleLogoClick} className={`w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 overflow-hidden shadow-lg relative group transition-all duration-300 ${isEditMode ? 'cursor-pointer border-[#3ACBE8] bg-[#3ACBE8]/10' : 'border-white/10 bg-white/5'}`}>
+                                <div onClick={handleLogoClick} className={`w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 overflow-hidden shadow-lg relative group transition-all duration-300 ${isEditMode ? 'cursor-pointer border-[#e90052] bg-[#e90052]/10 hover:bg-[#e90052]/20' : 'border-white/10 bg-white/5'}`}>
                                     {logoUrl ? (
                                         <>
                                             <img src={logoUrl} className="w-full h-full object-cover" />
@@ -604,7 +604,7 @@ const App: React.FC = () => {
                                 </div>
                                 <div className="flex-1">
                                     {isEditMode ? (
-                                        <input type="text" value={teamName} onChange={(e) => persistName(e.target.value)} className="bg-transparent text-xl md:text-4xl font-black text-white border-b-2 border-[#3ACBE8]/50 focus:border-[#3ACBE8] outline-none w-full placeholder-white/30" placeholder="Team Name" />
+                                        <input type="text" value={teamName} onChange={(e) => persistName(e.target.value)} className="bg-transparent text-xl md:text-4xl font-black text-white border-b-2 border-[#e90052]/50 focus:border-[#e90052] outline-none w-full placeholder-white/30" placeholder="Team Name" />
                                     ) : (
                                         <h1 className="text-xl md:text-4xl font-black text-white tracking-tight">{teamName}</h1>
                                     )}

@@ -112,16 +112,16 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         >
           <div className={`${avatarSizeClass} flex items-center justify-center rounded-full border-2 mb-1 relative transition-all duration-500
             ${isEditMode
-              ? 'bg-[#3ACBE8]/10 border-[#3ACBE8] border-dashed animate-pulse group-hover:bg-[#3ACBE8]/30'
+              ? 'bg-[#e90052]/10 border-[#e90052] border-dashed animate-pulse group-hover:bg-[#e90052]/30'
               : 'bg-white/5 border-white/20 border-dashed'
           }
         `}>
-            <Plus className={`transition-colors duration-300 ${isEditMode ? 'text-[#3ACBE8]' : 'text-white/30'}`} size={20} />
+            <Plus className={`transition-colors duration-300 ${isEditMode ? 'text-[#e90052]' : 'text-white/30'}`} size={20} />
           </div>
 
           <div className="w-full">
             {isEditMode && (
-                <div className="bg-[#3ACBE8] text-[#0041C7] text-[8px] md:text-[10px] font-bold text-center py-0.5 rounded-t-sm uppercase tracking-wider truncate">
+                <div className="bg-[#e90052] text-white text-[8px] md:text-[10px] font-bold text-center py-0.5 rounded-t-sm uppercase tracking-wider truncate">
                   Add
                 </div>
             )}
@@ -145,7 +145,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
           className={`flex flex-col items-center justify-center relative group ${cardWidthClass} transition-all duration-300 ${cursorClass}`}
       >
         {isSelected && (
-            <div className="absolute inset-0 bg-[#3ACBE8]/40 rounded-full scale-110 animate-pulse z-0 blur-xl"></div>
+            <div className="absolute inset-0 bg-[#e90052]/40 rounded-full scale-110 animate-pulse z-0 blur-xl"></div>
         )}
 
         {isEditMode && (
@@ -190,7 +190,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                 {/* Top Right Replace */}
                 <button
                     onClick={(e) => { e.stopPropagation(); onReplace?.(); }}
-                    className="absolute top-0 right-1 z-30 bg-[#3ACBE8] text-[#0041C7] rounded-full p-1.5 shadow-lg border border-white/20 hover:bg-white hover:scale-110 transition opacity-0 group-hover:opacity-100"
+                    className="absolute top-0 right-1 z-30 bg-[#e90052] text-white rounded-full p-1.5 shadow-lg border border-white/20 hover:bg-white hover:text-[#e90052] hover:scale-110 transition opacity-0 group-hover:opacity-100"
                     title="Replace Player"
                 >
                   <ArrowRightLeft size={14} strokeWidth={3} />
@@ -234,7 +234,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
         <div className={`${avatarSizeClass} rounded-full border-[2px] md:border-[3px] overflow-hidden mb-1 relative shadow-lg transition-all duration-300 flex items-center justify-center z-10
             ${!avatarUrl ? getTeamBgColor(player.teamColor) : 'bg-black/40'} 
-            ${isSelected ? 'border-[#3ACBE8] shadow-[0_0_20px_rgba(58,203,232,0.6)]' : (isEditMode ? 'border-[#3ACBE8] group-hover:shadow-[0_0_15px_rgba(58,203,232,0.5)]' : 'border-white/20')}
+            ${isSelected ? 'border-[#e90052] shadow-[0_0_20px_rgba(233,0,82,0.6)]' : (isEditMode ? 'border-[#e90052] group-hover:shadow-[0_0_15px_rgba(233,0,82,0.5)]' : 'border-white/20')}
             ${isCaptain ? 'ring-2 ring-yellow-400 ring-offset-1 md:ring-offset-2 ring-offset-[#0041C7]' : ''}
             ${isTripleCaptain ? 'ring-2 md:ring-4 ring-white ring-offset-1 md:ring-offset-2 ring-offset-[#0041C7]' : ''}
       `}>
@@ -254,17 +254,17 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         </div>
 
         <div className="w-full pointer-events-none relative z-10">
-          <div className={`text-white text-[8px] md:text-[11px] font-medium text-center py-0.5 truncate border-t-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-t-sm px-0.5 ${isSelected ? 'bg-[#3ACBE8] text-[#0041C7]' : 'bg-[#0160C9]'}`}>
+          <div className={`text-white text-[8px] md:text-[11px] font-medium text-center py-0.5 truncate border-t-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-t-sm px-0.5 ${isSelected ? 'bg-[#e90052] text-white' : 'bg-[#0160C9]'}`}>
             {player.name}
           </div>
-          <div className={`text-black text-[9px] md:text-[12px] font-bold text-center py-0.5 border-b-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-b-sm shadow-md flex justify-center items-center gap-1 transition-colors duration-300 ${isEditMode ? 'bg-[#3ACBE8] text-[#0041C7] border-[#3ACBE8]/50' : 'bg-white'}`}>
+          <div className={`text-black text-[9px] md:text-[12px] font-bold text-center py-0.5 border-b-2 border-l-2 border-r-2 border-[#3ACBE8]/30 rounded-b-sm shadow-md flex justify-center items-center gap-1 transition-colors duration-300 ${isEditMode ? 'bg-[#e90052] text-white border-[#e90052]/50' : 'bg-white'}`}>
             {isEditMode ? (
                 <span>£{player.price}</span>
             ) : (
                 <span>{displayPoints}</span>
             )}
           </div>
-          <div className={`text-[8px] md:text-[10px] text-white/80 text-center uppercase font-bold mt-0.5 tracking-wider rounded-sm ${isSelected ? 'bg-[#3ACBE8]/50 text-white' : 'bg-black/20'}`}>
+          <div className={`text-[8px] md:text-[10px] text-white/80 text-center uppercase font-bold mt-0.5 tracking-wider rounded-sm ${isSelected ? 'bg-[#e90052]/50 text-white' : 'bg-black/20'}`}>
             {player.position}
           </div>
         </div>
