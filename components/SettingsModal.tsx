@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Clock, Moon, Sun, Camera, Upload } from 'lucide-react';
 import { UserSettings } from '../types';
-import { saveUserTeam, checkUsernameTaken } from '../firebase';
+import { saveUserTeam, checkUsernameTaken, seedDatabase, INITIAL_DB_DATA } from '../firebase';
 import { User } from 'firebase/auth';
 
 interface SettingsModalProps {
@@ -39,6 +39,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                 setFormData({ ...formData, profilePictureUrl: base64String });
             };
             reader.readAsDataURL(file);
+        }
+    };
+
+    const handleResetDb = async () => {
+        if (confirm("Are you sure you want to reset the player database? This will update all player names and prices to the latest defaults.")) {
+            await seedDatabase(INITIAL_DB_DATA, false);
+            alert("Database reset complete.");
         }
     };
 
@@ -165,19 +172,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                             ))}
                         </div>
                     </div>
-
-                    import { saveUserTeam, checkUsernameTaken, seedDatabase, INITIAL_DB_DATA } from '../firebase';
-
-                    // ... inside SettingsModal component ...
-
-                    const handleResetDb = async () => {
-                    if (confirm("Are you sure you want to reset the player database? This will update all player names and prices to the latest defaults.")) {
-                    await seedDatabase(INITIAL_DB_DATA, false);
-                    alert("Database reset complete.");
-                }
-                };
-
-                    // ... inside the return JSX, before the Save button ...
 
                     <div className="pt-4 border-t border-white/10">
                         <button
