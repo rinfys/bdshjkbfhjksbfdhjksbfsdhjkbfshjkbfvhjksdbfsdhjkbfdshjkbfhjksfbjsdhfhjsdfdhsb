@@ -39,6 +39,7 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
             isViceCaptain={slot.isViceCaptain}
             isTripleCaptain={slot.isCaptain && activeChip === 'tripleCaptain'}
             isBench={slot.type === 'bench'}
+            isBenchBoostActive={activeChip === 'benchBoost'}
         />
     );
 
@@ -98,7 +99,7 @@ const Pitch: React.FC<PitchProps> = ({ slots, onSlotClick, onRemovePlayer, onRep
             </div>
 
             <div className={`rounded-b-xl border-x-2 border-b-2 p-2 md:p-6 mt-[-4px] z-10 relative shadow-inner transition-all duration-700 ${isEditMode ? 'bg-[#29002d] border-fpl-pink/50' : 'bg-gradient-to-b from-[#005f86] to-[#004f70] border-white/10'}`}>
-                <div className={`flex justify-center gap-2 md:gap-12 px-2 md:px-8 rounded-lg py-4 backdrop-blur-sm min-h-[80px] md:min-h-[120px] items-center transition-colors duration-700 ${isEditMode ? 'bg-fpl-pink/5 border border-fpl-pink/20' : 'bg-black/20'}`}>
+                <div className={`flex justify-center gap-2 md:gap-12 px-2 md:px-8 rounded-lg py-4 backdrop-blur-sm min-h-[80px] md:min-h-[120px] items-center transition-all duration-700 ${isEditMode ? 'bg-fpl-pink/5 border border-fpl-pink/20' : 'bg-black/20'} ${activeChip === 'benchBoost' ? 'ring-4 ring-[#3ACBE8] shadow-[0_0_30px_rgba(58,203,232,0.5)] bg-[#3ACBE8]/10' : ''}`}>
                     {[5,6,7].map(i => renderSlot(slots[i]))}
                 </div>
             </div>

@@ -11,6 +11,7 @@ import About from './components/About';
 import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 import RulesModal from './components/RulesModal';
+import ImageCropperModal from './components/ImageCropperModal';
 
 import { INITIAL_TEAM_SLOTS, GAMEWEEK_SCHEDULE } from './constants';
 import { ChevronLeft, ChevronRight, Edit2, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard, Lock as LockIcon, BookOpen, Crown, Zap, Shield, ArrowUpCircle } from 'lucide-react';
@@ -77,6 +78,10 @@ const App: React.FC = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isRulesOpen, setIsRulesOpen] = useState(false);
     const [marketSlotIndex, setMarketSlotIndex] = useState<number | null>(null);
+
+    // Image Cropper State
+    const [isCropperOpen, setIsCropperOpen] = useState(false);
+    const [tempImageSrc, setTempImageSrc] = useState<string | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -363,7 +368,25 @@ const App: React.FC = () => {
     const finishGuide = () => { setShowGuide(false); const updated = { ...settings, tutorialCompleted: true }; setSettings(updated); if(user) saveUserTeam(user.uid, { settings: updated }); enterEditMode(); };
     const handleGuideStepChange = (step: number) => { if (step === 2 && !isEditMode) enterEditMode(); };
     const handleLogoClick = () => isEditMode && fileInputRef.current?.click();
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { persistLogo(reader.result as string); }; reader.readAsDataURL(file); } };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setTempImageSrc(reader.result as string);
+                setIsCropperOpen(true);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleCropComplete = (croppedImage: string) => {
+        persistLogo(croppedImage);
+        setIsCropperOpen(false);
+        setTempImageSrc(null);
+    };
+
     const handleRemovePlayer = (index: number) => { if (!isEditMode) return; const newSlots = [...slots]; newSlots[index].player = null; newSlots[index].isCaptain = false; newSlots[index].isViceCaptain = false; persistTeam(newSlots); setSelectedSlotIndex(null); };
     const handleReplacePlayer = (index: number) => { if (!isEditMode) return; setMarketSlotIndex(index); setIsMarketOpen(true); setSelectedSlotIndex(null); };
 
@@ -383,6 +406,36 @@ const App: React.FC = () => {
                     setTimeout(() => setNotification(null), 3000);
                     setSelectedSlotIndex(null);
                     return;
+                }
+
+                // --- FORMATION VALIDATION ---
+                // Only validate if both slots have players (swapping empty slots is fine)
+                if (s1.player && s2.player) {
+                    // Simulate swap
+                    const tempP = s1.player;
+                    const tempS1 = { ...s1, player: s2.player };
+                    const tempS2 = { ...s2, player: tempP };
+
+                    const simulatedSlots = [...slots];
+                    simulatedSlots[selectedSlotIndex] = tempS1;
+                    simulatedSlots[index] = tempS2;
+
+                    const starters = simulatedSlots.filter(s => s.type === 'starter' && s.player);
+                    const defenders = starters.filter(s => s.player?.position === 'CD').length;
+                    const attackers = starters.filter(s => s.player?.position === 'HS').length;
+
+                    if (defenders < 1) {
+                        setNotification("Invalid: Must have at least 1 Defender!");
+                        setTimeout(() => setNotification(null), 3000);
+                        setSelectedSlotIndex(null);
+                        return;
+                    }
+                    if (attackers < 1) {
+                        setNotification("Invalid: Must have at least 1 Attacker!");
+                        setTimeout(() => setNotification(null), 3000);
+                        setSelectedSlotIndex(null);
+                        return;
+                    }
                 }
 
                 // Swap logic
@@ -459,7 +512,12 @@ const App: React.FC = () => {
                 <div className={`p-1.5 md:p-2 rounded-full mb-1 ${isActive ? 'bg-white text-[#0041C7]' : 'bg-[#0041C7] text-[#3ACBE8]'}`}>
                     <Icon size={16} className="md:w-5 md:h-5" />
                 </div>
-                <div className={`text-[8px] md:text-[10px] uppercase font-bold tracking-wider text-center leading-tight ${isActive ? 'text-[#0041C7]' : 'text-white'}`}>{label}</div>
+                <div className={`text-[8px] md:text-[10px] uppercase font-bold tracking-wider text-center leading-tight ${isActive ? 'text-[#0041C7]' : 'text-white'}`}>
+                    {label}
+                </div>
+                {available <= 0 && !isActive && (
+                    <div className="absolute bottom-1 text-[8px] text-red-400 font-bold uppercase">0 Left</div>
+                )}
             </button>
         );
     };
@@ -474,6 +532,7 @@ const App: React.FC = () => {
 
             <GuideOverlay active={showGuide} onComplete={finishGuide} teamName={teamName} logoUrl={logoUrl} onStepChange={handleGuideStepChange} />
             <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
+            <ImageCropperModal isOpen={isCropperOpen} imageSrc={tempImageSrc} onCancel={() => setIsCropperOpen(false)} onCropComplete={handleCropComplete} />
 
             {/* Notification Bar - High Z-Index for Mobile */}
             {notification && (

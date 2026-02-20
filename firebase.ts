@@ -28,13 +28,13 @@ const LEADERBOARD_COLLECTION = 'rwafantasy/leaderboards';
 export const INITIAL_DB_DATA: Player[] = [
     // AQUAPOLIS WC (Sky)
     { id: 1, name: "LostEzyxn", teamColor: "sky", position: "RW", price: 16.8, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
-    { id: 19, name: "zvafkez", teamColor: "sky", position: "HS", price: 12.3, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
+    { id: 19, name: "zvafkez", teamColor: "sky", position: "HS", price: 10.3, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
     { id: 20, name: "ysIswag", teamColor: "sky", position: "LW", price: 16.4, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
-    { id: 43, name: "ethansmemory", teamColor: "sky", position: "HS", price: 12.1, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
+    { id: 43, name: "ethansmemory", teamColor: "sky", position: "HS", price: 10.7, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
     { id: 44, name: "4003s", teamColor: "sky", position: "RW", price: 11.9, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
-    { id: 45, name: "Saintmoise", teamColor: "sky", position: "LW", price: 12.4, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
-    { id: 46, name: "GREENBEAN_4S0", teamColor: "sky", position: "LW", price: 11.2, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
-    { id: 47, name: "hurt3184", teamColor: "sky", position: "CD", price: 11.7, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
+    { id: 45, name: "Saintmoise", teamColor: "sky", position: "LW", price: 9.4, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
+    { id: 46, name: "GREENBEAN_4S0", teamColor: "sky", position: "LW", price: 8.2, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
+    { id: 47, name: "hurt3184", teamColor: "sky", position: "CD", price: 9.2, points: 0, avgRating: 0, imageUrl: LOGOS.aquapolis },
 
     // SIREN CITY WC (Purple)
     { id: 2, name: "mateiryan", teamColor: "purple", position: "HS", price: 19.2, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
@@ -44,9 +44,9 @@ export const INITIAL_DB_DATA: Player[] = [
     { id: 37, name: "Subl1t", teamColor: "purple", position: "LW", price: 10.1, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
     { id: 38, name: "SiriSxys", teamColor: "purple", position: "HS", price: 5.7, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
     { id: 39, name: "stzrridge", teamColor: "purple", position: "RW", price: 10.9, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
-    { id: 40, name: "burgerfan142", teamColor: "purple", position: "LW", price: 16.1, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
+    { id: 40, name: "burgerfan142", teamColor: "purple", position: "GK", price: 12.1, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
     { id: 41, name: "Chramephobia", teamColor: "purple", position: "HS", price: 9.4, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
-    { id: 42, name: "smurfxed", teamColor: "purple", position: "CD", price: 9.8, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
+    { id: 42, name: "smurfxed", teamColor: "purple", position: "CD", price: 7.8, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
     { id: 62, name: "hooomantan2 ", teamColor: "purple", position: "HS", price: 10.3, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
 
     // ATLANTIS WC (Yellow)
@@ -54,13 +54,13 @@ export const INITIAL_DB_DATA: Player[] = [
     { id: 32, name: "paralamogram", teamColor: "yellow", position: "RW", price: 16.2, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
     { id: 33, name: "thisinvasion", teamColor: "yellow", position: "RW", price: 19.1, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
     { id: 34, name: "jzidenn", teamColor: "yellow", position: "LW", price: 17.4, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
-    { id: 35, name: "awfull_2", teamColor: "yellow", position: "GK", price: 16.3, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
+    { id: 35, name: "awfull_2", teamColor: "yellow", position: "GK", price: 17.3, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
     { id: 60, name: "poncuil", teamColor: "yellow", position: "HS", price: 15.8, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
     { id: 61, name: "payystub", teamColor: "yellow", position: "CD", price: 15.9, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
     { id: 63, name: "mayendaa", teamColor: "yellow", position: "HS", price: 10.2, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
-    { id: 64, name: "cuethemoon", teamColor: "yellow", position: "LW", price: 13.5, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
+    { id: 64, name: "cuethemoon", teamColor: "yellow", position: "LW", price: 7.5, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
     { id: 65, name: "NOON_NOONS", teamColor: "yellow", position: "CD", price: 10.8, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
-    { id: 66, name: "Nourbirb", teamColor: "yellow", position: "CD", price: 9.3, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
+    { id: 66, name: "Nourbirb", teamColor: "yellow", position: "CD", price: 12.3, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
 
     // THAMES VALLEY HAMMERHEADS WC (Claret)
     { id: 22, name: "Infinite_10071", teamColor: "claret", position: "HS", price: 11.4, points: 0, avgRating: 0, imageUrl: LOGOS.hammerheads },
@@ -75,14 +75,14 @@ export const INITIAL_DB_DATA: Player[] = [
     { id: 18, name: "RaineJol", teamColor: "red", position: "LW", price: 5.4, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
     { id: 51, name: "g_rxgson", teamColor: "red", position: "HS", price: 9.8, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
     { id: 52, name: "Willduzza1", teamColor: "red", position: "RW", price: 5.2, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
-    { id: 53, name: "afkssammy", teamColor: "red", position: "LW", price: 5.1, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
+    { id: 53, name: "afkssammy", teamColor: "red", position: "LW", price: 10.1, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
     { id: 54, name: "XeoJol", teamColor: "red", position: "CD", price: 4.9, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
     { id: 55, name: "levi072009", teamColor: "red", position: "RW", price: 4.8, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
-    { id: 56, name: "smithyboypq", teamColor: "red", position: "LW", price: 12.2, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
+    { id: 56, name: "smithyboypq", teamColor: "red", position: "LW", price: 8.2, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
     { id: 57, name: "Ninjatdog2011", teamColor: "red", position: "HS", price: 9.3, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
-    { id: 58, name: "SpeyFVZ", teamColor: "red", position: "CD", price: 12.5, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
-    { id: 59, name: "jp_webb7", teamColor: "red", position: "CD", price: 11.8, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
-    { id: 90, name: "TreepTreeps", teamColor: "green", position: "CD", price: 10.1, points: 0, avgRating: 0, imageUrl: LOGOS.kraken },
+    { id: 58, name: "SpeyFVZ", teamColor: "red", position: "CD", price: 10.5, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
+    { id: 59, name: "jp_webb7", teamColor: "red", position: "CD", price: 14.8, points: 0, avgRating: 0, imageUrl: LOGOS.lst },
+    { id: 90, name: "TreepTreeps", teamColor: "green", position: "CD", price: 13.1, points: 0, avgRating: 0, imageUrl: LOGOS.kraken },
 
     // KRAKEN CREW WC (Green)
     { id: 3, name: "Frknky_12", teamColor: "green", position: "LW", price: 12.1, points: 0, avgRating: 0, imageUrl: LOGOS.kraken },

@@ -43,7 +43,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, username, prof
                                 <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
 
                                 {/* Tooltip */}
-                                <span className="absolute left-full ml-6 px-3 py-1.5 bg-[#0041C7] text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap border border-white/10 shadow-xl translate-x-[-10px] group-hover:translate-x-0 z-50">
+                                <span className="absolute left-full ml-6 px-3 py-1.5 bg-[#0041C7] text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap border border-white/10 shadow-xl translate-x-[-10px] group-hover:translate-x-0 z-50 top-1/2 -translate-y-1/2">
                                     {item.label}
                                     <div className="absolute top-1/2 right-full -mt-1 border-4 border-transparent border-r-[#0041C7]"></div>
                                 </span>
@@ -59,14 +59,14 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, username, prof
                 <div className="flex flex-col gap-4 mt-auto">
                     <button onClick={onOpenSettings} className="p-3 text-gray-400 hover:text-white hover:bg-white/10 rounded-2xl transition-all duration-300 group relative">
                         <Settings size={22} />
-                        <span className="absolute left-full ml-6 px-3 py-1.5 bg-[#0041C7] text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap border border-white/10 shadow-xl translate-x-[-10px] group-hover:translate-x-0 z-50">
+                        <span className="absolute left-full ml-6 px-3 py-1.5 bg-[#0041C7] text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap border border-white/10 shadow-xl translate-x-[-10px] group-hover:translate-x-0 z-50 top-1/2 -translate-y-1/2">
                             Settings
                             <div className="absolute top-1/2 right-full -mt-1 border-4 border-transparent border-r-[#0041C7]"></div>
                         </span>
                     </button>
                     <button onClick={onLogout} className="p-3 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all duration-300 group relative">
                         <LogOut size={22} />
-                        <span className="absolute left-full ml-6 px-3 py-1.5 bg-red-900 text-red-100 text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap border border-red-500/20 shadow-xl translate-x-[-10px] group-hover:translate-x-0 z-50">
+                        <span className="absolute left-full ml-6 px-3 py-1.5 bg-red-900 text-red-100 text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap border border-red-500/20 shadow-xl translate-x-[-10px] group-hover:translate-x-0 z-50 top-1/2 -translate-y-1/2">
                             Logout
                             <div className="absolute top-1/2 right-full -mt-1 border-4 border-transparent border-r-red-900"></div>
                         </span>

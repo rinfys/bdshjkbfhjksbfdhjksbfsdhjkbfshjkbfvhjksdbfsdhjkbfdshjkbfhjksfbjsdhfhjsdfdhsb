@@ -16,12 +16,13 @@ interface PlayerCardProps {
   isCaptain?: boolean;
   isViceCaptain?: boolean;
   isTripleCaptain?: boolean;
+  isBenchBoostActive?: boolean;
 }
 
 const PlayerCard: React.FC<PlayerCardProps> = ({
                                                  player, positionLabel, onClick, onRemove, onReplace,
                                                  onMakeCaptain, onMakeViceCaptain, isBench, isEditMode, isSelected,
-                                                 isCaptain, isViceCaptain, isTripleCaptain
+                                                 isCaptain, isViceCaptain, isTripleCaptain, isBenchBoostActive
                                                }) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
@@ -195,8 +196,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                   <ArrowRightLeft size={14} strokeWidth={3} />
                 </button>
 
-                {/* Bottom Captain Actions */}
-                <div className="absolute bottom-12 right-0 flex flex-col gap-1 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Bottom Captain Actions - Always Visible in Edit Mode */}
+                <div className="absolute bottom-12 right-0 flex flex-col gap-1 z-30 transition-opacity">
                   <button
                       onClick={(e) => { e.stopPropagation(); onMakeCaptain?.(); }}
                       className={`rounded-full p-1.5 shadow-lg border border-white/20 hover:scale-110 transition ${isCaptain ? 'bg-black text-yellow-400 border-yellow-400' : 'bg-gray-600 text-gray-300 hover:bg-black hover:text-yellow-400'}`}
