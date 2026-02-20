@@ -1,5 +1,5 @@
-import React from 'react';
-import { Home, Trophy, Info, Mail, LogOut, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Home, Trophy, Info, Mail, LogOut, User, Settings } from 'lucide-react';
 
 interface NavbarProps {
     currentView: string;
@@ -19,82 +19,101 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, username, prof
     ];
 
     return (
-        <nav className="bg-[#0160C9]/90 backdrop-blur-xl sticky top-0 z-[50] border-b border-white/10 shadow-2xl">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#1CA3DE] via-[#3ACBE8] to-[#0041C7]"></div>
+        <>
+            {/* DESKTOP SIDEBAR - Floating Glass Dock */}
+            <nav className="hidden md:flex fixed left-6 top-1/2 -translate-y-1/2 flex-col items-center gap-8 py-8 px-3 bg-[#0160C9]/40 backdrop-blur-2xl border border-white/10 rounded-[3rem] shadow-[0_0_40px_-10px_rgba(58,203,232,0.3)] z-50 transition-all duration-300 hover:bg-[#0160C9]/60 hover:shadow-[0_0_60px_-10px_rgba(58,203,232,0.5)] min-h-[500px]">
 
-            <div className="max-w-7xl mx-auto px-6">
-                <div className="flex items-center justify-between h-20">
-
-                    <button className="flex items-center gap-4 group focus:outline-none" onClick={() => onNavigate('home')}>
-                        <div className="w-10 h-10 flex items-center justify-center">
-                            <img src="https://i.imgur.com/AZYKczg.png" alt="Logo" className="w-full h-full object-contain hover:scale-110 transition-transform duration-300" />
-                        </div>
-                        <div className="text-left hidden md:block">
-                            <h1 className="text-white font-extrabold text-xl leading-none tracking-tight group-hover:text-[#3ACBE8] transition-colors">RWA Fantasy</h1>
-                            <p className="text-[10px] text-gray-300 font-medium tracking-widest uppercase mt-1">Official League</p>
-                        </div>
-                    </button>
-
-                    <div className="hidden md:flex items-center gap-1 bg-white/5 p-1.5 rounded-2xl border border-white/5 shadow-inner">
-                        {navItems.map((item) => {
-                            const Icon = item.icon;
-                            const isActive = currentView === item.id;
-                            return (
-                                <button
-                                    key={item.id}
-                                    onClick={() => onNavigate(item.id)}
-                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300
-                                        ${isActive
-                                        ? 'bg-gradient-to-r from-[#3ACBE8] to-[#1CA3DE] text-[#0041C7] shadow-lg shadow-[#3ACBE8]/20 translate-y-[-1px]'
-                                        : 'text-gray-300 hover:text-white hover:bg-white/5'
-                                    }
-                                    `}
-                                >
-                                    <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-                                    {item.label}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        <button onClick={onOpenSettings} className="hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-full bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer group">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1CA3DE] to-[#0160C9] flex items-center justify-center text-white text-xs font-bold shadow-inner overflow-hidden">
-                                {profilePictureUrl ? (
-                                    <img src={profilePictureUrl} alt={username} className="w-full h-full object-cover" />
-                                ) : (
-                                    username.substring(0, 1).toUpperCase()
-                                )}
-                            </div>
-                            <span className="text-xs font-bold text-gray-200 pr-2 max-w-[100px] truncate group-hover:text-white">{username}</span>
-                        </button>
-
-                        <button onClick={onLogout} className="p-2.5 text-gray-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all duration-200 border border-transparent hover:border-red-400/20" title="Sign Out">
-                            <LogOut size={20} />
-                        </button>
-                    </div>
+                {/* Logo */}
+                <div className="w-12 h-12 mb-4 relative group cursor-pointer" onClick={() => onNavigate('home')}>
+                    <div className="absolute inset-0 bg-[#3ACBE8] rounded-full blur-lg opacity-20 group-hover:opacity-60 transition-opacity duration-500"></div>
+                    <img src="https://i.imgur.com/AZYKczg.png" alt="Logo" className="w-full h-full object-contain relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3" />
                 </div>
-            </div>
 
-            <div className="md:hidden fixed bottom-0 left-0 w-full bg-[#0160C9]/95 backdrop-blur-xl border-t border-white/10 pb-safe z-50">
-                <div className="flex justify-around items-center p-2">
+                {/* Nav Items */}
+                <div className="flex flex-col gap-6 w-full items-center">
                     {navItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = currentView === item.id;
                         return (
-                            <button key={item.id} onClick={() => onNavigate(item.id)} className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all w-16 h-16 ${isActive ? 'text-[#3ACBE8] bg-white/5' : 'text-gray-400'}`}>
-                                <Icon size={24} className={`mb-1 transition-transform ${isActive ? 'scale-110' : ''}`} />
-                                <span className="text-[10px] font-medium">{item.label}</span>
+                            <button
+                                key={item.id}
+                                onClick={() => onNavigate(item.id)}
+                                className={`relative group p-3 rounded-2xl transition-all duration-300 ${isActive ? 'bg-[#3ACBE8] text-[#0041C7] shadow-[0_0_20px_rgba(58,203,232,0.6)] scale-110' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                            >
+                                <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+
+                                {/* Tooltip */}
+                                <span className="absolute left-full ml-6 px-3 py-1.5 bg-[#0041C7] text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap border border-white/10 shadow-xl translate-x-[-10px] group-hover:translate-x-0 z-50">
+                                    {item.label}
+                                    <div className="absolute top-1/2 right-full -mt-1 border-4 border-transparent border-r-[#0041C7]"></div>
+                                </span>
                             </button>
-                        )
+                        );
                     })}
-                    <button onClick={onOpenSettings} className="flex flex-col items-center justify-center p-3 rounded-2xl transition-all w-16 h-16 text-gray-400">
-                        <User size={24} className="mb-1" />
-                        <span className="text-[10px] font-medium">Profile</span>
+                </div>
+
+                {/* Spacer */}
+                <div className="flex-1"></div>
+
+                {/* Settings / Logout */}
+                <div className="flex flex-col gap-4 mt-auto">
+                    <button onClick={onOpenSettings} className="p-3 text-gray-400 hover:text-white hover:bg-white/10 rounded-2xl transition-all duration-300 group relative">
+                        <Settings size={22} />
+                        <span className="absolute left-full ml-6 px-3 py-1.5 bg-[#0041C7] text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap border border-white/10 shadow-xl translate-x-[-10px] group-hover:translate-x-0 z-50">
+                            Settings
+                            <div className="absolute top-1/2 right-full -mt-1 border-4 border-transparent border-r-[#0041C7]"></div>
+                        </span>
+                    </button>
+                    <button onClick={onLogout} className="p-3 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all duration-300 group relative">
+                        <LogOut size={22} />
+                        <span className="absolute left-full ml-6 px-3 py-1.5 bg-red-900 text-red-100 text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap border border-red-500/20 shadow-xl translate-x-[-10px] group-hover:translate-x-0 z-50">
+                            Logout
+                            <div className="absolute top-1/2 right-full -mt-1 border-4 border-transparent border-r-red-900"></div>
+                        </span>
                     </button>
                 </div>
+            </nav>
+
+            {/* DESKTOP TOP RIGHT - User Profile Pill */}
+            <div className="hidden md:flex fixed top-6 right-8 z-50 items-center gap-4">
+                <button onClick={onOpenSettings} className="flex items-center gap-3 pl-2 pr-4 py-2 bg-[#0160C9]/40 backdrop-blur-xl border border-white/10 rounded-full shadow-lg hover:bg-[#0160C9]/60 transition-all duration-300 group cursor-pointer hover:border-[#3ACBE8]/30">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#3ACBE8] to-[#0160C9] flex items-center justify-center text-white text-xs font-bold shadow-inner overflow-hidden border-2 border-white/10 group-hover:border-[#3ACBE8] transition-all">
+                        {profilePictureUrl ? (
+                            <img src={profilePictureUrl} alt={username} className="w-full h-full object-cover" />
+                        ) : (
+                            username.substring(0, 1).toUpperCase()
+                        )}
+                    </div>
+                    <div className="flex flex-col items-start">
+                        <span className="text-xs font-bold text-white tracking-wide group-hover:text-[#3ACBE8] transition-colors">{username}</span>
+                        <span className="text-[10px] text-[#3ACBE8] font-medium tracking-wider uppercase opacity-80 group-hover:opacity-100">Manager</span>
+                    </div>
+                </button>
             </div>
-        </nav>
+
+            {/* MOBILE BOTTOM BAR - Floating Pill */}
+            <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-[#0160C9]/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl z-50 px-6 py-4 flex justify-between items-center">
+                {navItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = currentView === item.id;
+                    return (
+                        <button key={item.id} onClick={() => onNavigate(item.id)} className={`relative flex flex-col items-center justify-center w-12 h-12 rounded-full transition-all duration-300 ${isActive ? 'bg-[#3ACBE8] text-[#0041C7] -translate-y-4 shadow-[0_10px_20px_-5px_rgba(58,203,232,0.5)] scale-110' : 'text-gray-400 hover:text-white'}`}>
+                            <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                            {isActive && <div className="absolute -bottom-6 w-1 h-1 bg-[#3ACBE8] rounded-full"></div>}
+                        </button>
+                    )
+                })}
+                <button onClick={onOpenSettings} className="relative flex flex-col items-center justify-center w-12 h-12 rounded-full text-gray-400 hover:text-white transition-all">
+                    <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20">
+                        {profilePictureUrl ? (
+                            <img src={profilePictureUrl} alt={username} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-[#1CA3DE] to-[#0160C9] flex items-center justify-center text-[10px] text-white font-bold">{username.substring(0, 1).toUpperCase()}</div>
+                        )}
+                    </div>
+                </button>
+            </div>
+        </>
     );
 };
 

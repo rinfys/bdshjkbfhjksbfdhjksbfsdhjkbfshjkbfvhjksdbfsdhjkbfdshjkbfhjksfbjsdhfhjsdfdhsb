@@ -517,7 +517,7 @@ const App: React.FC = () => {
                 <Navbar currentView={currentPage} onNavigate={setCurrentPage} username={settings.username} profilePictureUrl={settings.profilePictureUrl} onLogout={logoutUser} onOpenSettings={() => setIsSettingsOpen(true)} />
             )}
 
-            <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-4 md:py-8 relative z-10 flex flex-col gap-6">
+            <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-4 md:py-8 md:pl-32 relative z-10 flex flex-col gap-6">
 
                 {currentPage === 'home' && (
                     <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full animate-in fade-in zoom-in-95 duration-500">
