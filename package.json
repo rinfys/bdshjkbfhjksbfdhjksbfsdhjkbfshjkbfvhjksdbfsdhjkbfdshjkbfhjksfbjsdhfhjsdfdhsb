@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@mui/material": "^7.3.8",
     "@tailwindcss/vite": "^4.1.18",
     "firebase": "^12.9.0",

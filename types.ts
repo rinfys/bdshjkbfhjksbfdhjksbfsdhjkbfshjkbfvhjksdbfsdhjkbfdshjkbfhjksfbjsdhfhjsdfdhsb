@@ -67,8 +67,42 @@ export interface League {
   variant?: 'broadcaster' | 'general';
 }
 
-export interface Cup {
-  name: string;
-  gw: string;
-  status: 'active' | 'out';
+export interface MatchEvent {
+  kind: 'goal' | 'assist' | 'save' | 'yellow' | 'red';
+  scorer?: string;
+  player?: string;
+  t: number;
+  team: string;
+}
+
+export interface MatchPlayerStats {
+  assists: number;
+  goals: number;
+  mvp: boolean;
+  saves: number;
+  team: string;
+  userId: string;
+  username: string;
+}
+
+export interface MatchSummary {
+  createdAt: number;
+  matchId: string;
+  mvpUserId: string;
+  score: {
+    quarter: string;
+    team1Name: string;
+    team1Score: number;
+    team2Name: string;
+    team2Score: number;
+  };
+  winner: string;
+}
+
+export interface MatchData {
+  liveEvents?: Record<string, MatchEvent>;
+  players: Record<string, MatchPlayerStats>;
+  savedAt: number;
+  status: string;
+  summary: MatchSummary;
 }

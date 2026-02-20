@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Player } from '../types';
 import { Plus, X, ArrowRightLeft, Crown } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface PlayerCardProps {
   player: Player | null;
@@ -17,14 +19,28 @@ interface PlayerCardProps {
   isViceCaptain?: boolean;
   isTripleCaptain?: boolean;
   isBenchBoostActive?: boolean;
+  slotIndex: number; // Added for DnD
 }
 
 const PlayerCard: React.FC<PlayerCardProps> = ({
                                                  player, positionLabel, onClick, onRemove, onReplace,
                                                  onMakeCaptain, onMakeViceCaptain, isBench, isEditMode, isSelected,
-                                                 isCaptain, isViceCaptain, isTripleCaptain, isBenchBoostActive
+                                                 isCaptain, isViceCaptain, isTripleCaptain, isBenchBoostActive, slotIndex
                                                }) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: slotIndex,
+    disabled: !isEditMode
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 999 : 'auto',
+    touchAction: 'none'
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -107,6 +123,10 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   if (!player) {
     return (
         <div
+            ref={setNodeRef}
+            style={style}
+            {...attributes}
+            {...listeners}
             onClick={isEditMode ? onClick : undefined}
             className={`flex flex-col items-center justify-center group ${cardWidthClass} transition-all duration-300 ${cursorClass} ${!isEditMode && 'opacity-50 grayscale'}`}
         >
@@ -141,6 +161,10 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
   return (
       <div
+          ref={setNodeRef}
+          style={style}
+          {...attributes}
+          {...listeners}
           onClick={isEditMode ? onClick : undefined}
           className={`flex flex-col items-center justify-center relative group ${cardWidthClass} transition-all duration-300 ${cursorClass}`}
       >

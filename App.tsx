@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { DndContext, DragOverlay, useSensor, useSensors, MouseSensor, TouchSensor, DragStartEvent, DragEndEvent, closestCenter } from '@dnd-kit/core';
 import Pitch from './components/Pitch';
 import PlayerList from './components/PlayerList';
 import MarketModal from './components/MarketModal';
@@ -15,8 +16,8 @@ import ImageCropperModal from './components/ImageCropperModal';
 
 import { INITIAL_TEAM_SLOTS, GAMEWEEK_SCHEDULE } from './constants';
 import { ChevronLeft, ChevronRight, Edit2, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard, Lock as LockIcon, BookOpen, Crown, Zap, Shield, ArrowUpCircle } from 'lucide-react';
-import { Player, TeamSlot, UserSettings, UserChips } from './types';
-import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA, logLeaderboardEntry } from './firebase';
+import { Player, TeamSlot, UserSettings, UserChips, MatchData } from './types';
+import { subscribeToPlayers, seedDatabase, subscribeToAuth, logoutUser, subscribeToUserTeam, saveUserTeam, INITIAL_DB_DATA, logLeaderboardEntry, subscribeToMatches } from './firebase';
 import { User } from 'firebase/auth';
 
 const MAX_BUDGET = 100.0;
@@ -48,6 +49,7 @@ const App: React.FC = () => {
 
     // Global State
     const [dbPlayers, setDbPlayers] = useState<Player[]>([]);
+    const [matches, setMatches] = useState<Record<string, MatchData>>({});
     const [currentRealGameweek, setCurrentRealGameweek] = useState(2);
 
     // User State
@@ -68,6 +70,7 @@ const App: React.FC = () => {
     const [isEditMode, setIsEditMode] = useState(false);
     const [backupSlots, setBackupSlots] = useState<TeamSlot[]>([]);
     const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
+    const [activeDragId, setActiveDragId] = useState<number | null>(null);
 
     // Modals
     const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
@@ -84,6 +87,12 @@ const App: React.FC = () => {
     const [tempImageSrc, setTempImageSrc] = useState<string | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // DnD Sensors
+    const sensors = useSensors(
+        useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+    );
 
     // --- GAMEWEEK & INIT ---
     useEffect(() => {
@@ -174,26 +183,96 @@ const App: React.FC = () => {
         return () => unsubscribeUser();
     }, [user, currentRealGameweek]);
 
-    // Live Player Updates
+    // Live Player Updates & Match Points
     useEffect(() => {
         if (!user) return;
-        const unsubscribeMarket = subscribeToPlayers((fetchedPlayers) => {
-            if (!fetchedPlayers || fetchedPlayers.length === 0) {
-                seedDatabase(INITIAL_DB_DATA, false);
-                setDbPlayers(INITIAL_DB_DATA);
-            } else {
-                setDbPlayers(fetchedPlayers);
-            }
-            const sourceData = (fetchedPlayers && fetchedPlayers.length > 0) ? fetchedPlayers : INITIAL_DB_DATA;
+
+        let fetchedPlayers: Player[] = [];
+        let fetchedMatches: Record<string, MatchData> = {};
+
+        const updatePlayerPoints = () => {
+            if (fetchedPlayers.length === 0) return;
+
+            const updatedPlayers = fetchedPlayers.map(p => {
+                let points = 0;
+
+                // Calculate points from matches
+                Object.values(fetchedMatches).forEach(match => {
+                    // Find player in match stats (by username match)
+                    const matchPlayerKey = Object.keys(match.players).find(key =>
+                        match.players[key].username.toLowerCase() === p.name.toLowerCase()
+                    );
+
+                    if (matchPlayerKey) {
+                        const stats = match.players[matchPlayerKey];
+                        const team = stats.team;
+                        const isWinner = match.summary.winner === team;
+                        const isLoser = match.summary.winner && match.summary.winner !== team && match.summary.winner !== 'Draw';
+
+                        // Rules:
+                        // Win: +4
+                        if (isWinner) points += 4;
+                        // Lose: -2
+                        if (isLoser) points -= 2;
+                        // Goal: +2
+                        points += (stats.goals * 2);
+                        // Assist: +1
+                        points += (stats.assists * 1);
+                        // MVP: +4
+                        if (stats.mvp) points += 4;
+                        // GK Save: +1
+                        if (p.position === 'GK') {
+                            points += (stats.saves * 1);
+                        }
+                        // Defender Concede < 12: +6
+                        // Assuming "Concede" refers to team goals conceded
+                        if (p.position === 'CD' || p.position === 'GK') {
+                            const opponentScore = team === match.summary.score.team1Name
+                                ? match.summary.score.team2Score
+                                : match.summary.score.team1Score;
+
+                            if (opponentScore < 12) {
+                                points += 6;
+                            }
+                        }
+                    }
+                });
+
+                return { ...p, points: points > 0 ? points : 0 }; // Ensure no negative total? Or allow it? FPL allows negative.
+            });
+
+            setDbPlayers(updatedPlayers);
+
+            // Also update current slots with new points
             setSlots(currentSlots => {
                 return currentSlots.map(slot => {
                     if (!slot.player) return slot;
-                    const updatedPlayer = sourceData.find(p => p.id === slot.player!.id);
+                    const updatedPlayer = updatedPlayers.find(p => p.id === slot.player!.id);
                     return updatedPlayer ? { ...slot, player: updatedPlayer } : slot;
                 });
             });
+        };
+
+        const unsubscribePlayers = subscribeToPlayers((players) => {
+            if (!players || players.length === 0) {
+                seedDatabase(INITIAL_DB_DATA, false);
+                fetchedPlayers = INITIAL_DB_DATA;
+            } else {
+                fetchedPlayers = players;
+            }
+            updatePlayerPoints();
         });
-        return () => unsubscribeMarket();
+
+        const unsubscribeMatches = subscribeToMatches((data) => {
+            fetchedMatches = data;
+            setMatches(data);
+            updatePlayerPoints();
+        });
+
+        return () => {
+            unsubscribePlayers();
+            unsubscribeMatches();
+        };
     }, [user]);
 
     // --- ACTIONS ---
@@ -389,6 +468,84 @@ const App: React.FC = () => {
 
     const handleRemovePlayer = (index: number) => { if (!isEditMode) return; const newSlots = [...slots]; newSlots[index].player = null; newSlots[index].isCaptain = false; newSlots[index].isViceCaptain = false; persistTeam(newSlots); setSelectedSlotIndex(null); };
     const handleReplacePlayer = (index: number) => { if (!isEditMode) return; setMarketSlotIndex(index); setIsMarketOpen(true); setSelectedSlotIndex(null); };
+
+    // DnD Handlers
+    const handleDragStart = (event: DragStartEvent) => {
+        if (!isEditMode) return;
+        setActiveDragId(Number(event.active.id));
+    };
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        if (!isEditMode) return;
+        const { active, over } = event;
+        setActiveDragId(null);
+
+        if (!over) return;
+
+        const activeIndex = Number(active.id);
+        const overIndex = Number(over.id);
+
+        if (activeIndex !== overIndex) {
+            handleSlotSwap(activeIndex, overIndex);
+        }
+    };
+
+    const handleSlotSwap = (index1: number, index2: number) => {
+        const newSlots = [...slots];
+        const s1 = newSlots[index1];
+        const s2 = newSlots[index2];
+
+        // Check GK constraint
+        const isGKSlot = (i: number) => i === 0 || i === 5;
+        const isGKPlayer = (p: Player | null) => p?.position === 'GK';
+
+        // If swapping a player into a GK slot, or a GK into another slot, validate
+        if (s1.player && isGKSlot(index2) && !isGKPlayer(s1.player)) {
+            setNotification("Only Goalkeepers can play in GK slots.");
+            setTimeout(() => setNotification(null), 3000);
+            return;
+        }
+        if (s2.player && isGKSlot(index1) && !isGKPlayer(s2.player)) {
+            setNotification("Only Goalkeepers can play in GK slots.");
+            setTimeout(() => setNotification(null), 3000);
+            return;
+        }
+
+        // --- FORMATION VALIDATION ---
+        // Only validate if both slots have players (swapping empty slots is fine)
+        if (s1.player && s2.player) {
+            // Simulate swap
+            const tempP = s1.player;
+            const tempS1 = { ...s1, player: s2.player };
+            const tempS2 = { ...s2, player: tempP };
+
+            const simulatedSlots = [...slots];
+            simulatedSlots[index1] = tempS1;
+            simulatedSlots[index2] = tempS2;
+
+            const starters = simulatedSlots.filter(s => s.type === 'starter' && s.player);
+            const defenders = starters.filter(s => s.player?.position === 'CD').length;
+            const attackers = starters.filter(s => s.player?.position === 'HS').length;
+
+            if (defenders < 1) {
+                setNotification("Invalid: Must have at least 1 Defender!");
+                setTimeout(() => setNotification(null), 3000);
+                return;
+            }
+            if (attackers < 1) {
+                setNotification("Invalid: Must have at least 1 Attacker!");
+                setTimeout(() => setNotification(null), 3000);
+                return;
+            }
+        }
+
+        // Swap logic
+        const tempP = s1.player; const tempC = s1.isCaptain; const tempVC = s1.isViceCaptain;
+        newSlots[index1].player = s2.player; newSlots[index1].isCaptain = s2.isCaptain; newSlots[index1].isViceCaptain = s2.isViceCaptain;
+        newSlots[index2].player = tempP; newSlots[index2].isCaptain = tempC; newSlots[index2].isViceCaptain = tempVC;
+
+        persistTeam(newSlots);
+    };
 
     const handleSlotClick = (index: number) => {
         if (!isEditMode) return;
