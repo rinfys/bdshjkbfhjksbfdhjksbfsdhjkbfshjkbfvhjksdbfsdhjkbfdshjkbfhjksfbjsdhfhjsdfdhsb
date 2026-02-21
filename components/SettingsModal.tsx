@@ -9,9 +9,10 @@ interface SettingsModalProps {
     onClose: () => void;
     user: User;
     currentSettings: UserSettings;
+    onOpenAdmin?: () => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, currentSettings }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, currentSettings, onOpenAdmin }) => {
     const [formData, setFormData] = useState<UserSettings>(currentSettings);
     const [error, setError] = useState('');
     const [isSaving, setIsSaving] = useState(false);

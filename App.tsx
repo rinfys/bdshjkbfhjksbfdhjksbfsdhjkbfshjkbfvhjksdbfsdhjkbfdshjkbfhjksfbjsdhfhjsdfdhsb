@@ -24,6 +24,8 @@ import { User } from 'firebase/auth';
 const MAX_BUDGET = 100.0;
 const CURRENCY_SYMBOLS = { 'GBP': '£', 'USD': '$', 'EUR': '€' };
 
+const ADMIN_UID = "gP1fOik32Daa33t41GSlWWAdqK02";
+
 const DEFAULT_SETTINGS: UserSettings = {
     username: '',
     usernameLastChanged: 0,
@@ -89,6 +91,8 @@ const App: React.FC = () => {
     const [tempImageSrc, setTempImageSrc] = useState<string | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const isAdmin = user?.uid === ADMIN_UID;
 
     // DnD Sensors
     const sensors = useSensors(
@@ -636,6 +640,20 @@ const App: React.FC = () => {
         );
     };
 
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+                if (user?.uid === ADMIN_UID) {
+                    e.preventDefault();
+                    setIsAdminOpen(prev => !prev);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [user]);
+
     if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7]"><div className="animate-spin w-12 h-12 border-4 border-[#3ACBE8] rounded-full border-t-transparent"></div></div>;
     if (!user) return <Login />;
     if (userDataLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7] text-white font-bold animate-pulse">LOADING MANAGER...</div>;
@@ -807,12 +825,11 @@ const App: React.FC = () => {
             </main>
 
             <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} players={dbPlayers.length > 0 ? dbPlayers : INITIAL_DB_DATA} positionFilter={getMarketFilter(marketSlotIndex)} onSelect={handlePlayerSelect} currentBudget={remainingBudget} sellPrice={marketSlotIndex !== null ? (slots[marketSlotIndex].player?.price || 0) : 0} ownedPlayerIds={ownedPlayerIds} currencySymbol={currencySymbol} />
-            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} user={user} currentSettings={settings} onOpenAdmin={() => { setIsSettingsOpen(false); setIsAdminOpen(true); }} />
+            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} user={user} currentSettings={settings} onOpenAdmin={isAdmin ? () => { setIsSettingsOpen(false); setIsAdminOpen(true); } : undefined} />
 
         </div>
     );
 };
 
 export default App;
-
 
