@@ -44,8 +44,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
 
     const handleResetDb = async () => {
         if (confirm("Are you sure you want to reset the player database? This will update all player names and prices to the latest defaults.")) {
-            await seedDatabase(INITIAL_DB_DATA, false);
-            alert("Database reset complete.");
+            try {
+                await seedDatabase(INITIAL_DB_DATA, false);
+                alert("Database reset complete.");
+            } catch (e: any) {
+                console.error("Reset failed:", e);
+                if (e.code === 'PERMISSION_DENIED' || e.message?.includes('permission_denied')) {
+                    alert("Error: Permission Denied.\n\nYour Firebase Database Rules are blocking this write operation.\n\nPlease go to the Firebase Console > Realtime Database > Rules and ensure you have write access.\n\nTemporary Rule (for development):\n{\n  \"rules\": {\n    \".read\": true,\n    \".write\": true\n  }\n}");
+                } else {
+                    alert(`Error resetting database: ${e.message}`);
+                }
+            }
         }
     };
 
