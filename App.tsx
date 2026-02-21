@@ -188,80 +188,26 @@ const App: React.FC = () => {
         if (!user) return;
 
         let fetchedPlayers: Player[] = [];
-        let fetchedMatches: Record<string, MatchData> = {};
 
-        const updatePlayerPoints = () => {
-            if (fetchedPlayers.length === 0) return;
+        const fetchLivePoints = async () => {
+            try {
+                const response = await fetch('/api/live-points');
+                if (!response.ok) throw new Error('Failed to fetch live points');
+                const updatedPlayers: Player[] = await response.json();
 
-            console.log("Updating points with matches:", Object.keys(fetchedMatches).length);
-            if (Object.keys(fetchedMatches).length > 0) {
-                const firstMatchKey = Object.keys(fetchedMatches)[0];
-                console.log("First match structure:", fetchedMatches[firstMatchKey]);
-                if (fetchedMatches[firstMatchKey].players) {
-                    console.log("First match players:", Object.keys(fetchedMatches[firstMatchKey].players));
-                }
+                setDbPlayers(updatedPlayers);
+
+                // Also update current slots with new points
+                setSlots(currentSlots => {
+                    return currentSlots.map(slot => {
+                        if (!slot.player) return slot;
+                        const updatedPlayer = updatedPlayers.find(p => p.id === slot.player!.id);
+                        return updatedPlayer ? { ...slot, player: updatedPlayer } : slot;
+                    });
+                });
+            } catch (error) {
+                console.error("Error fetching live points:", error);
             }
-
-            const updatedPlayers = fetchedPlayers.map(p => {
-                let points = 0;
-
-                // Calculate points from matches
-                Object.values(fetchedMatches).forEach((match: any) => {
-                    if (!match || !match.players) return;
-
-                    // Find player in match stats (by username match)
-                    const matchPlayerKey = Object.keys(match.players).find(key =>
-                        match.players[key]?.username?.toLowerCase() === p.name.toLowerCase()
-                    );
-
-                    if (matchPlayerKey) {
-                        console.log(`Found match for ${p.name} in match`, match);
-                        const stats = match.players[matchPlayerKey];
-                        const team = stats.team;
-
-                        // Individual Stats (Always available if player exists)
-                        points += ((stats.goals || 0) * 2);
-                        points += ((stats.assists || 0) * 1);
-                        if (stats.mvp) points += 4;
-                        if (p.position === 'GK') {
-                            points += ((stats.saves || 0) * 1);
-                        }
-
-                        // Team Stats (Require Summary)
-                        if (match.summary) {
-                            const isWinner = match.summary.winner === team;
-                            const isLoser = match.summary.winner && match.summary.winner !== team && match.summary.winner !== 'Draw';
-
-                            if (isWinner) points += 4;
-                            if (isLoser) points -= 2;
-
-                            // Defender Concede < 12
-                            if (p.position === 'CD' || p.position === 'GK') {
-                                const opponentScore = team === match.summary.score?.team1Name
-                                    ? match.summary.score?.team2Score
-                                    : match.summary.score?.team1Score;
-
-                                if (opponentScore !== undefined && opponentScore < 12) {
-                                    points += 6;
-                                }
-                            }
-                        }
-                    }
-                });
-
-                return { ...p, points: points > 0 ? points : 0 }; // Ensure no negative total? Or allow it? FPL allows negative.
-            });
-
-            setDbPlayers(updatedPlayers);
-
-            // Also update current slots with new points
-            setSlots(currentSlots => {
-                return currentSlots.map(slot => {
-                    if (!slot.player) return slot;
-                    const updatedPlayer = updatedPlayers.find(p => p.id === slot.player!.id);
-                    return updatedPlayer ? { ...slot, player: updatedPlayer } : slot;
-                });
-            });
         };
 
         const unsubscribePlayers = subscribeToPlayers((players) => {
@@ -271,18 +217,16 @@ const App: React.FC = () => {
             } else {
                 fetchedPlayers = players;
             }
-            updatePlayerPoints();
+            // Initial fetch
+            fetchLivePoints();
         });
 
-        const unsubscribeMatches = subscribeToMatches((data) => {
-            fetchedMatches = data;
-            setMatches(data);
-            updatePlayerPoints();
-        });
+        // Poll for live points every 5 seconds
+        const intervalId = setInterval(fetchLivePoints, 5000);
 
         return () => {
             unsubscribePlayers();
-            unsubscribeMatches();
+            clearInterval(intervalId);
         };
     }, [user]);
 
