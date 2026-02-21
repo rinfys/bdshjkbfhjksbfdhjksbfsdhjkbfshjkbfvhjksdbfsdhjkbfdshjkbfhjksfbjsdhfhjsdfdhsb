@@ -71,9 +71,16 @@ async function startServer() {
                     if (!match || !match.players) return;
 
                     // Find player in match stats
-                    const matchPlayerKey = Object.keys(match.players).find(key =>
-                        match.players[key]?.username?.toLowerCase() === p.name.toLowerCase()
-                    );
+                    // The key might be the username or a userId.
+                    // The value might contain a username property.
+                    let matchPlayerKey = Object.keys(match.players).find(key => {
+                        const playerStats = match.players[key];
+                        // Check if key itself matches username
+                        if (key.toLowerCase() === p.name.toLowerCase()) return true;
+                        // Check if username property matches
+                        if (playerStats?.username?.toLowerCase() === p.name.toLowerCase()) return true;
+                        return false;
+                    });
 
                     if (matchPlayerKey) {
                         const stats = match.players[matchPlayerKey];
@@ -152,9 +159,16 @@ async function startServer() {
                     if (!match || !match.players) return;
 
                     // Find player in match stats
-                    const matchPlayerKey = Object.keys(match.players).find(key =>
-                        match.players[key]?.username?.toLowerCase() === p.name.toLowerCase()
-                    );
+                    // The key might be the username or a userId.
+                    // The value might contain a username property.
+                    let matchPlayerKey = Object.keys(match.players).find(key => {
+                        const playerStats = match.players[key];
+                        // Check if key itself matches username
+                        if (key.toLowerCase() === p.name.toLowerCase()) return true;
+                        // Check if username property matches
+                        if (playerStats?.username?.toLowerCase() === p.name.toLowerCase()) return true;
+                        return false;
+                    });
 
                     if (matchPlayerKey) {
                         const stats = match.players[matchPlayerKey];
