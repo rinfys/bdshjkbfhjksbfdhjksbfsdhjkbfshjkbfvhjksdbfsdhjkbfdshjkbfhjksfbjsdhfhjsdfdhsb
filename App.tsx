@@ -193,6 +193,15 @@ const App: React.FC = () => {
         const updatePlayerPoints = () => {
             if (fetchedPlayers.length === 0) return;
 
+            console.log("Updating points with matches:", Object.keys(fetchedMatches).length);
+            if (Object.keys(fetchedMatches).length > 0) {
+                const firstMatchKey = Object.keys(fetchedMatches)[0];
+                console.log("First match structure:", fetchedMatches[firstMatchKey]);
+                if (fetchedMatches[firstMatchKey].players) {
+                    console.log("First match players:", Object.keys(fetchedMatches[firstMatchKey].players));
+                }
+            }
+
             const updatedPlayers = fetchedPlayers.map(p => {
                 let points = 0;
 
@@ -206,6 +215,7 @@ const App: React.FC = () => {
                     );
 
                     if (matchPlayerKey) {
+                        console.log(`Found match for ${p.name} in match`, match);
                         const stats = match.players[matchPlayerKey];
                         const team = stats.team;
 

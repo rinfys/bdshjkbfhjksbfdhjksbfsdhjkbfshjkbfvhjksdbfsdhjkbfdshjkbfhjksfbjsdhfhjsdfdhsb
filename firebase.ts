@@ -48,7 +48,7 @@ export const INITIAL_DB_DATA: Player[] = [
     { id: 40, name: "burgerfan142", teamColor: "purple", position: "LW", price: 16.1, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
     { id: 41, name: "Chramephobia", teamColor: "purple", position: "HS", price: 9.4, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
     { id: 42, name: "smurfxed", teamColor: "purple", position: "CD", price: 9.8, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
-    { id: 62, name: "hooomantan2 ", teamColor: "purple", position: "HS", price: 10.3, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
+    { id: 62, name: "hooomantan2", teamColor: "purple", position: "HS", price: 10.3, points: 0, avgRating: 0, imageUrl: LOGOS.siren },
 
     // ATLANTIS WC (Yellow)
     { id: 31, name: "simswapd", teamColor: "yellow", position: "GK", price: 9.6, points: 0, avgRating: 0, imageUrl: LOGOS.atlantis },
@@ -236,11 +236,16 @@ export const subscribeToMatches = (callback: (matches: Record<string, MatchData>
         setTimeout(() => callback({}), 0);
         return () => {};
     }
+    console.log(`Subscribing to matches at: ${MATCHES_COLLECTION}`);
     const matchesRef = ref(db, MATCHES_COLLECTION);
     return onValue(matchesRef, (snapshot) => {
         const data = snapshot.val();
+        console.log("Matches data received:", data ? Object.keys(data) : "null");
         callback(data || {});
-    }, () => callback({}));
+    }, (error) => {
+        console.error("Error subscribing to matches:", error);
+        callback({});
+    });
 };
 
 // ADMIN
