@@ -23,7 +23,7 @@ let isFirebaseAvailable = false;
 const USERS_COLLECTION = 'rwafantasy/users';
 const PLAYERS_COLLECTION = 'rwafantasy/players';
 const LEADERBOARD_COLLECTION = 'rwafantasy/leaderboards';
-const MATCHES_COLLECTION = 'rwafantasy/matches  '; // As per user request
+const MATCHES_COLLECTION = 'rwafantasy/matches'; // As per user request
 
 // --- INITIAL DATABASE SEED DATA ---
 export const INITIAL_DB_DATA: Player[] = [
