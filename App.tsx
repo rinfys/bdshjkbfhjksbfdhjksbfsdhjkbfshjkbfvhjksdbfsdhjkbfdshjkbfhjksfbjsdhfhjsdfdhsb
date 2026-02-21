@@ -826,6 +826,7 @@ const App: React.FC = () => {
 
             <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} players={dbPlayers.length > 0 ? dbPlayers : INITIAL_DB_DATA} positionFilter={getMarketFilter(marketSlotIndex)} onSelect={handlePlayerSelect} currentBudget={remainingBudget} sellPrice={marketSlotIndex !== null ? (slots[marketSlotIndex].player?.price || 0) : 0} ownedPlayerIds={ownedPlayerIds} currencySymbol={currencySymbol} />
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} user={user} currentSettings={settings} onOpenAdmin={isAdmin ? () => { setIsSettingsOpen(false); setIsAdminOpen(true); } : undefined} />
+            <AdminModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} players={dbPlayers} />
 
         </div>
     );

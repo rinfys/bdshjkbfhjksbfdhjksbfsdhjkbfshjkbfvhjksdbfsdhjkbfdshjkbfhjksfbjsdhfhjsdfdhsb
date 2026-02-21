@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import admin from 'firebase-admin';
 
 // Initialize Firebase Admin
-// Check if already initialized to prevent "App already exists" error
 if (!admin.apps.length) {
     try {
         // Check for service account in env var
@@ -15,14 +14,12 @@ if (!admin.apps.length) {
                 credential: admin.credential.cert(serviceAccount),
                 databaseURL: "https://rwafantasy-default-rtdb.europe-west1.firebasedatabase.app/"
             });
-            console.log("✅ Firebase Admin initialized with Service Account");
         } else {
             // Fallback: Try default credentials
             admin.initializeApp({
                 credential: admin.credential.applicationDefault(),
                 databaseURL: "https://rwafantasy-default-rtdb.europe-west1.firebasedatabase.app/"
             });
-            console.log("⚠️ Firebase Admin initialized with Default Credentials");
         }
     } catch (error) {
         console.error("❌ Firebase Admin Initialization Error:", error);
@@ -65,18 +62,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const results = players.map(p => {
             let points = 0;
 
-            Object.values(matches).forEach((match: any) => {
+            Object.keys(matches).forEach(matchKey => {
+                const match = matches[matchKey];
                 if (!match || !match.players) return;
 
-                // Find player in match stats
-                // The key might be the username or a userId.
-                // The value might contain a username property.
+                // STRUCTURE: rwafantasy/matches/[MATCH_ID]/players/[User Key]
+                // User Key often looks like "1421734370 (burgerfan142)"
+
                 let matchPlayerKey = Object.keys(match.players).find(key => {
                     const playerStats = match.players[key];
-                    // Check if key itself matches username
-                    if (key.toLowerCase() === p.name.toLowerCase()) return true;
-                    // Check if username property matches
+                    // 1. Check if the key itself contains the username (case insensitive)
+                    if (key.toLowerCase().includes(p.name.toLowerCase())) return true;
+
+                    // 2. Check if the data inside has a matching 'username' property
                     if (playerStats?.username?.toLowerCase() === p.name.toLowerCase()) return true;
+
                     return false;
                 });
 
@@ -102,11 +102,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                         // Defender/GK Clean Sheet
                         if (p.position === 'CD' || p.position === 'GK') {
-                            const opponentScore = team === match.summary.score?.team1Name
-                                ? match.summary.score?.team2Score
-                                : match.summary.score?.team1Score;
+                            const team1 = match.summary.score?.team1Name;
+                            const team2 = match.summary.score?.team2Name;
+                            let opponentScore = 100;
 
-                            if (opponentScore !== undefined && opponentScore < 12) {
+                            if (team === team1) {
+                                opponentScore = match.summary.score?.team2Score || 0;
+                            } else if (team === team2) {
+                                opponentScore = match.summary.score?.team1Score || 0;
+                            }
+
+                            if (opponentScore < 12) {
                                 points += 6;
                             }
                         }
@@ -124,3 +130,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(500).json({ error: error.message });
     }
 }
+

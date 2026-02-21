@@ -64,21 +64,21 @@ async function startServer() {
                 let points = 0;
 
                 Object.keys(matches).forEach(matchKey => {
-                    // Filter for keys starting with "match" as requested
-                    if (!matchKey.startsWith('match')) return;
-
                     const match = matches[matchKey];
                     if (!match || !match.players) return;
 
-                    // Find player in match stats
-                    // The key might be the username or a userId.
-                    // The value might contain a username property.
+                    // The structure is rwafantasy/matches/[MATCH_ID]/players/[User Key]
+                    // User Key often looks like "1421734370 (burgerfan142)" or simply "1421734370"
+                    // We need to find the entry where user ID matches OR username matches
+
                     let matchPlayerKey = Object.keys(match.players).find(key => {
                         const playerStats = match.players[key];
-                        // Check if key itself matches username
-                        if (key.toLowerCase() === p.name.toLowerCase()) return true;
-                        // Check if username property matches
+                        // 1. Check if the key itself contains the username (case insensitive)
+                        if (key.toLowerCase().includes(p.name.toLowerCase())) return true;
+
+                        // 2. Check if the data inside has a matching 'username' property
                         if (playerStats?.username?.toLowerCase() === p.name.toLowerCase()) return true;
+
                         return false;
                     });
 
@@ -90,6 +90,7 @@ async function startServer() {
                         points += ((stats.goals || 0) * 2);
                         points += ((stats.assists || 0) * 1);
                         if (stats.mvp) points += 4;
+                        // Saves usually for GK, but we count them if present
                         if (p.position === 'GK') {
                             points += ((stats.saves || 0) * 1);
                         }
@@ -104,11 +105,18 @@ async function startServer() {
 
                             // Defender/GK Clean Sheet
                             if (p.position === 'CD' || p.position === 'GK') {
-                                const opponentScore = team === match.summary.score?.team1Name
-                                    ? match.summary.score?.team2Score
-                                    : match.summary.score?.team1Score;
+                                // Determine opponent score
+                                const team1 = match.summary.score?.team1Name;
+                                const team2 = match.summary.score?.team2Name;
+                                let opponentScore = 100; // Default high
 
-                                if (opponentScore !== undefined && opponentScore < 12) {
+                                if (team === team1) {
+                                    opponentScore = match.summary.score?.team2Score || 0;
+                                } else if (team === team2) {
+                                    opponentScore = match.summary.score?.team1Score || 0;
+                                }
+
+                                if (opponentScore < 12) { // 12 is arbitrary threshold from earlier code, keeping it
                                     points += 6;
                                 }
                             }
@@ -148,25 +156,20 @@ async function startServer() {
 
             players.forEach(p => {
                 let points = 0;
-                // Also accumulate stats if needed, but user asked for points conversion
-                // We'll recalculate the points from scratch based on matches
 
                 Object.keys(matches).forEach(matchKey => {
-                    // Filter for keys starting with "match" as requested
-                    if (!matchKey.startsWith('match')) return;
-
                     const match = matches[matchKey];
                     if (!match || !match.players) return;
 
-                    // Find player in match stats
-                    // The key might be the username or a userId.
-                    // The value might contain a username property.
+                    // Match matching logic (duplicate of above)
                     let matchPlayerKey = Object.keys(match.players).find(key => {
                         const playerStats = match.players[key];
-                        // Check if key itself matches username
-                        if (key.toLowerCase() === p.name.toLowerCase()) return true;
-                        // Check if username property matches
+                        // 1. Check if the key itself contains the username (case insensitive)
+                        if (key.toLowerCase().includes(p.name.toLowerCase())) return true;
+
+                        // 2. Check if the data inside has a matching 'username' property
                         if (playerStats?.username?.toLowerCase() === p.name.toLowerCase()) return true;
+
                         return false;
                     });
 
@@ -192,11 +195,17 @@ async function startServer() {
 
                             // Defender/GK Clean Sheet
                             if (p.position === 'CD' || p.position === 'GK') {
-                                const opponentScore = team === match.summary.score?.team1Name
-                                    ? match.summary.score?.team2Score
-                                    : match.summary.score?.team1Score;
+                                const team1 = match.summary.score?.team1Name;
+                                const team2 = match.summary.score?.team2Name;
+                                let opponentScore = 100;
 
-                                if (opponentScore !== undefined && opponentScore < 12) {
+                                if (team === team1) {
+                                    opponentScore = match.summary.score?.team2Score || 0;
+                                } else if (team === team2) {
+                                    opponentScore = match.summary.score?.team1Score || 0;
+                                }
+
+                                if (opponentScore < 12) {
                                     points += 6;
                                 }
                             }
@@ -204,8 +213,6 @@ async function startServer() {
                     }
                 });
 
-                // Prepare update for this player
-                // We need to find the key in the playersData object that corresponds to this player
                 const playerKey = Object.keys(playersData).find(key => playersData[key].id === p.id);
                 if (playerKey) {
                      updates[`${PLAYERS_COLLECTION}/${playerKey}/points`] = points > 0 ? points : 0;
@@ -255,9 +262,6 @@ async function startServer() {
             appType: 'spa',
         });
         app.use(vite.middlewares);
-    } else {
-        // In production, serve static files (if built)
-        // app.use(express.static('dist'));
     }
 
     app.listen(PORT, "0.0.0.0", () => {
@@ -266,3 +270,4 @@ async function startServer() {
 }
 
 startServer();
+
