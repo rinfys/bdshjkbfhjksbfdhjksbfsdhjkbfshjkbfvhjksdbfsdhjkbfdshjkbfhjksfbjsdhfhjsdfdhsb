@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
-import { X, Save, Trash2, Plus, Database, AlertCircle } from 'lucide-react';
+import { X, Save, Trash2, Plus, Database, AlertCircle, RefreshCw } from 'lucide-react';
 import { updatePlayerInDb, addPlayerToDb, deletePlayerFromDb, seedDatabase, INITIAL_DB_DATA } from '../firebase';
 
 interface AdminModalProps {
@@ -12,6 +12,7 @@ interface AdminModalProps {
 const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editForm, setEditForm] = useState<Partial<Player>>({});
+    const [isUpdating, setIsUpdating] = useState(false);
 
     if (!isOpen) return null;
 
@@ -58,6 +59,28 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
         }
     };
 
+    const handleUpdatePoints = async () => {
+        if (!confirm('This will recalculate all player points based on match data. Continue?')) return;
+
+        setIsUpdating(true);
+        try {
+            const response = await fetch('http://localhost:3000/api/update-points', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            console.error("Update failed", error);
+            alert("Failed to update points. Make sure server is running.");
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
             <div className="bg-[#0160C9] w-full max-w-5xl rounded-2xl shadow-2xl border border-white/10 flex flex-col h-[85vh]">
@@ -86,6 +109,15 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
                     </div>
 
                     <div className="flex gap-3">
+                        <button
+                            onClick={handleUpdatePoints}
+                            disabled={isUpdating}
+                            className={`flex items-center gap-2 px-4 py-2 bg-purple-600 text-white font-bold rounded hover:bg-purple-500 transition shadow-lg ${isUpdating ? 'opacity-50' : ''}`}
+                        >
+                            <RefreshCw size={18} className={isUpdating ? "animate-spin" : ""} />
+                            {isUpdating ? "Updating..." : "Sync Points"}
+                        </button>
+
                         <button
                             onClick={handleSeed}
                             className="px-4 py-2 text-red-300 text-xs font-bold rounded hover:bg-red-900/40 transition"
@@ -246,3 +278,4 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
 };
 
 export default AdminModal;
+
