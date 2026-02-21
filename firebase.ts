@@ -253,6 +253,22 @@ export const updatePlayerInDb = (player: Player) => {
     if (!isFirebaseAvailable || !db) return Promise.reject("No DB");
     return set(ref(db, playerPath(player.id)), player);
 };
+
+export const updatePlayerPointsInDb = (playerId: number, points: number) => {
+    if (!isFirebaseAvailable || !db) return Promise.reject("No DB");
+    return update(ref(db, playerPath(playerId)), { points: points });
+}
+
+export const fetchAllMatches = async () => {
+    if (!isFirebaseAvailable || !db) return {};
+    try {
+        const snapshot = await get(ref(db, MATCHES_COLLECTION));
+        return snapshot.val() || {};
+    } catch {
+        return {};
+    }
+}
+
 export const addPlayerToDb = (player: Player) => updatePlayerInDb(player);
 export const deletePlayerFromDb = (id: number) => {
     if (!isFirebaseAvailable || !db) return Promise.reject("No DB");

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { X, Save, Trash2, Plus, Database, AlertCircle, RefreshCw } from 'lucide-react';
-import { updatePlayerInDb, addPlayerToDb, deletePlayerFromDb, seedDatabase, INITIAL_DB_DATA } from '../firebase';
+import { updatePlayerInDb, addPlayerToDb, deletePlayerFromDb, seedDatabase, INITIAL_DB_DATA, fetchAllMatches, updatePlayerPointsInDb } from '../firebase';
 
 interface AdminModalProps {
     isOpen: boolean;
@@ -60,22 +60,87 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, players }) => 
     };
 
     const handleUpdatePoints = async () => {
-        if (!confirm('This will recalculate all player points based on match data. Continue?')) return;
+        if (!confirm('This will recalculate all player points based on match data (client-side). Continue?')) return;
 
         setIsUpdating(true);
         try {
-            const response = await fetch('http://localhost:3000/api/update-points', {
-                method: 'POST'
-            });
-            const data = await response.json();
-            if (response.ok) {
-                alert(data.message);
-            } else {
-                alert('Error: ' + data.error);
+            // Client-side calculation logic
+            const matches = await fetchAllMatches();
+            let updatedCount = 0;
+
+            console.log("Found matches:", Object.keys(matches).length);
+
+            // Iterate through all players provided in props
+            for (const p of players) {
+                let points = 0;
+
+                Object.keys(matches).forEach(matchKey => {
+                    // Check if key is relevant (should act same as server logic)
+                    if (!matchKey.startsWith('match')) return;
+
+                    const match = matches[matchKey];
+                    if (!match || !match.players) return;
+
+                    // Find player in match stats
+                    // The key might be the username or a userId.
+                    // The value might contain a username property.
+                    let matchPlayerKey = Object.keys(match.players).find(key => {
+                        const playerStats = match.players[key];
+                        // Check if key itself matches username
+                        if (key.toLowerCase() === p.name.toLowerCase()) return true;
+                        // Check if username property matches
+                        if (playerStats?.username?.toLowerCase() === p.name.toLowerCase()) return true;
+                        return false;
+                    });
+
+                    if (matchPlayerKey) {
+                        const stats = match.players[matchPlayerKey];
+                        const team = stats.team;
+
+                        // Individual Stats
+                        points += ((stats.goals || 0) * 2);
+                        points += ((stats.assists || 0) * 1);
+                        if (stats.mvp) points += 4;
+                        if (p.position === 'GK') {
+                            points += ((stats.saves || 0) * 1);
+                        }
+
+                        // Team Stats (Require Summary)
+                        if (match.summary) {
+                            const isWinner = match.summary.winner === team;
+                            const isLoser = match.summary.winner && match.summary.winner !== team && match.summary.winner !== 'Draw';
+
+                            if (isWinner) points += 4;
+                            if (isLoser) points -= 2;
+
+                            // Defender/GK Clean Sheet
+                            if (p.position === 'CD' || p.position === 'GK') {
+                                const opponentScore = team === match.summary.score?.team1Name
+                                    ? match.summary.score?.team2Score
+                                    : match.summary.score?.team1Score;
+
+                                if (opponentScore !== undefined && opponentScore < 12) {
+                                    points += 6;
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Update point in DB if different (or just always update to be safe)
+                // We assume points cannot be negative overall, or handle it as previously: max(points, 0)
+                const finalPoints = points > 0 ? points : 0;
+
+                // Perform individual update
+                await updatePlayerPointsInDb(p.id, finalPoints);
+                updatedCount++;
             }
+
+            alert(`Successfully synced points for ${updatedCount} players.`);
+
         } catch (error) {
             console.error("Update failed", error);
-            alert("Failed to update points. Make sure server is running.");
+            alert("Failed to update points: " + (error as any).message);
         } finally {
             setIsUpdating(false);
         }
