@@ -16,7 +16,7 @@ export const LOGOS = {
 // GW1 Skipped. GW2 is Current (Active). GW3 Future.
 export const GAMEWEEK_SCHEDULE = [
   { id: 1, label: "GW 1", start: "2025-01-01T00:00:00Z", deadline: "2025-01-08T00:00:00Z" },
-  { id: 2, label: "GW 2", start: "2025-02-01T00:00:00Z", deadline: "2026-02-21T15:00:00Z" },
+  { id: 2, label: "GW 2", start: "2025-02-01T00:00:00Z", deadline: "2026-02-22T13:00:00Z" },
   { id: 3, label: "GW 3", start: "2026-02-23T00:00:00Z", deadline: "2026-03-01T15:00:00Z" },
   { id: 4, label: "GW 4", start: "2026-03-02T00:00:00Z", deadline: "2026-03-08T15:00:00Z" }
 ];
