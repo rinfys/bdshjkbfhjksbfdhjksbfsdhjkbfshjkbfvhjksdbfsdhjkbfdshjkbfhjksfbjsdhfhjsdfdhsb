@@ -9,10 +9,9 @@ interface SettingsModalProps {
     onClose: () => void;
     user: User;
     currentSettings: UserSettings;
-    onOpenAdmin?: () => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, currentSettings, onOpenAdmin }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, currentSettings }) => {
     const [formData, setFormData] = useState<UserSettings>(currentSettings);
     const [error, setError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -40,6 +39,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                 setFormData({ ...formData, profilePictureUrl: base64String });
             };
             reader.readAsDataURL(file);
+        }
+    };
+
+    const handleResetDb = async () => {
+        if (confirm("Are you sure you want to reset the player database? This will update all player names and prices to the latest defaults.")) {
+            try {
+                await seedDatabase(INITIAL_DB_DATA, false);
+                alert("Database reset complete.");
+            } catch (e: any) {
+                console.error("Reset failed:", e);
+                if (e.code === 'PERMISSION_DENIED' || e.message?.includes('permission_denied')) {
+                    alert("Error: Permission Denied.\n\nYour Firebase Database Rules are blocking this write operation.\n\nPlease go to the Firebase Console > Realtime Database > Rules and ensure you have write access.\n\nTemporary Rule (for development):\n{\n  \"rules\": {\n    \".read\": true,\n    \".write\": true\n  }\n}");
+                } else {
+                    alert(`Error resetting database: ${e.message}`);
+                }
+            }
         }
     };
 
@@ -167,16 +182,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user, cu
                         </div>
                     </div>
 
-                    {onOpenAdmin && (
-                        <div className="pt-4 border-t border-white/10">
-                            <button
-                                onClick={onOpenAdmin}
-                                className="w-full py-2 text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider border border-purple-500/30 rounded-lg hover:bg-purple-500/10 transition"
-                            >
-                                Open Admin Panel
-                            </button>
-                        </div>
-                    )}
+                    <div className="pt-4 border-t border-white/10">
+                        <button
+                            onClick={handleResetDb}
+                            className="w-full py-2 text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-wider border border-red-500/30 rounded-lg hover:bg-red-500/10 transition"
+                        >
+                            Reset Player Database
+                        </button>
+                        <p className="text-[10px] text-gray-500 text-center mt-1">Use this if player names are outdated.</p>
+                    </div>
 
                     {error && (
                         <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-500 text-xs text-center font-bold">

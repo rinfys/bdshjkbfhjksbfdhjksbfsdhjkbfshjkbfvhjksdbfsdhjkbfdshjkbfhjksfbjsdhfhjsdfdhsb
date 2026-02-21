@@ -13,7 +13,6 @@ import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 import RulesModal from './components/RulesModal';
 import ImageCropperModal from './components/ImageCropperModal';
-import AdminModal from './components/AdminModal';
 
 import { INITIAL_TEAM_SLOTS, GAMEWEEK_SCHEDULE } from './constants';
 import { ChevronLeft, ChevronRight, Edit2, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard, Lock as LockIcon, BookOpen, Crown, Zap, Shield, ArrowUpCircle } from 'lucide-react';
@@ -23,8 +22,6 @@ import { User } from 'firebase/auth';
 
 const MAX_BUDGET = 100.0;
 const CURRENCY_SYMBOLS = { 'GBP': '£', 'USD': '$', 'EUR': '€' };
-
-const ADMIN_UID = "gP1fOik32Daa33t41GSlWWAdqK02";
 
 const DEFAULT_SETTINGS: UserSettings = {
     username: '',
@@ -83,7 +80,6 @@ const App: React.FC = () => {
     const [isMarketOpen, setIsMarketOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isRulesOpen, setIsRulesOpen] = useState(false);
-    const [isAdminOpen, setIsAdminOpen] = useState(false);
     const [marketSlotIndex, setMarketSlotIndex] = useState<number | null>(null);
 
     // Image Cropper State
@@ -91,8 +87,6 @@ const App: React.FC = () => {
     const [tempImageSrc, setTempImageSrc] = useState<string | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const isAdmin = user?.uid === ADMIN_UID;
 
     // DnD Sensors
     const sensors = useSensors(
@@ -194,26 +188,70 @@ const App: React.FC = () => {
         if (!user) return;
 
         let fetchedPlayers: Player[] = [];
+        let fetchedMatches: Record<string, MatchData> = {};
 
-        const fetchLivePoints = async () => {
-            try {
-                const response = await fetch('/api/live-points');
-                if (!response.ok) throw new Error('Failed to fetch live points');
-                const updatedPlayers: Player[] = await response.json();
+        const updatePlayerPoints = () => {
+            if (fetchedPlayers.length === 0) return;
 
-                setDbPlayers(updatedPlayers);
+            const updatedPlayers = fetchedPlayers.map(p => {
+                let points = 0;
 
-                // Also update current slots with new points
-                setSlots(currentSlots => {
-                    return currentSlots.map(slot => {
-                        if (!slot.player) return slot;
-                        const updatedPlayer = updatedPlayers.find(p => p.id === slot.player!.id);
-                        return updatedPlayer ? { ...slot, player: updatedPlayer } : slot;
-                    });
+                // Calculate points from matches
+                Object.values(fetchedMatches).forEach((match: any) => {
+                    if (!match || !match.players) return;
+
+                    // Find player in match stats (by username match)
+                    const matchPlayerKey = Object.keys(match.players).find(key =>
+                        match.players[key]?.username?.toLowerCase() === p.name.toLowerCase()
+                    );
+
+                    if (matchPlayerKey) {
+                        const stats = match.players[matchPlayerKey];
+                        const team = stats.team;
+
+                        // Individual Stats (Always available if player exists)
+                        points += ((stats.goals || 0) * 2);
+                        points += ((stats.assists || 0) * 1);
+                        if (stats.mvp) points += 4;
+                        if (p.position === 'GK') {
+                            points += ((stats.saves || 0) * 1);
+                        }
+
+                        // Team Stats (Require Summary)
+                        if (match.summary) {
+                            const isWinner = match.summary.winner === team;
+                            const isLoser = match.summary.winner && match.summary.winner !== team && match.summary.winner !== 'Draw';
+
+                            if (isWinner) points += 4;
+                            if (isLoser) points -= 2;
+
+                            // Defender Concede < 12
+                            if (p.position === 'CD' || p.position === 'GK') {
+                                const opponentScore = team === match.summary.score?.team1Name
+                                    ? match.summary.score?.team2Score
+                                    : match.summary.score?.team1Score;
+
+                                if (opponentScore !== undefined && opponentScore < 12) {
+                                    points += 6;
+                                }
+                            }
+                        }
+                    }
                 });
-            } catch (error) {
-                console.error("Error fetching live points:", error);
-            }
+
+                return { ...p, points: points > 0 ? points : 0 }; // Ensure no negative total? Or allow it? FPL allows negative.
+            });
+
+            setDbPlayers(updatedPlayers);
+
+            // Also update current slots with new points
+            setSlots(currentSlots => {
+                return currentSlots.map(slot => {
+                    if (!slot.player) return slot;
+                    const updatedPlayer = updatedPlayers.find(p => p.id === slot.player!.id);
+                    return updatedPlayer ? { ...slot, player: updatedPlayer } : slot;
+                });
+            });
         };
 
         const unsubscribePlayers = subscribeToPlayers((players) => {
@@ -223,16 +261,18 @@ const App: React.FC = () => {
             } else {
                 fetchedPlayers = players;
             }
-            // Initial fetch
-            fetchLivePoints();
+            updatePlayerPoints();
         });
 
-        // Poll for live points every 5 seconds
-        const intervalId = setInterval(fetchLivePoints, 5000);
+        const unsubscribeMatches = subscribeToMatches((data) => {
+            fetchedMatches = data;
+            setMatches(data);
+            updatePlayerPoints();
+        });
 
         return () => {
             unsubscribePlayers();
-            clearInterval(intervalId);
+            unsubscribeMatches();
         };
     }, [user]);
 
@@ -640,20 +680,6 @@ const App: React.FC = () => {
         );
     };
 
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.ctrlKey && e.shiftKey && e.key === 'A') {
-                if (user?.uid === ADMIN_UID) {
-                    e.preventDefault();
-                    setIsAdminOpen(prev => !prev);
-                }
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [user]);
-
     if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7]"><div className="animate-spin w-12 h-12 border-4 border-[#3ACBE8] rounded-full border-t-transparent"></div></div>;
     if (!user) return <Login />;
     if (userDataLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0041C7] text-white font-bold animate-pulse">LOADING MANAGER...</div>;
@@ -664,7 +690,6 @@ const App: React.FC = () => {
 
             <GuideOverlay active={showGuide} onComplete={finishGuide} teamName={teamName} logoUrl={logoUrl} onStepChange={handleGuideStepChange} />
             <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
-            <AdminModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} players={dbPlayers} />
             <ImageCropperModal isOpen={isCropperOpen} imageSrc={tempImageSrc} onCancel={() => setIsCropperOpen(false)} onCropComplete={handleCropComplete} />
 
             {/* Notification Bar - High Z-Index for Mobile */}
@@ -825,12 +850,10 @@ const App: React.FC = () => {
             </main>
 
             <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} players={dbPlayers.length > 0 ? dbPlayers : INITIAL_DB_DATA} positionFilter={getMarketFilter(marketSlotIndex)} onSelect={handlePlayerSelect} currentBudget={remainingBudget} sellPrice={marketSlotIndex !== null ? (slots[marketSlotIndex].player?.price || 0) : 0} ownedPlayerIds={ownedPlayerIds} currencySymbol={currencySymbol} />
-            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} user={user} currentSettings={settings} onOpenAdmin={isAdmin ? () => { setIsSettingsOpen(false); setIsAdminOpen(true); } : undefined} />
-            <AdminModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} players={dbPlayers} />
+            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} user={user} currentSettings={settings} />
 
         </div>
     );
 };
 
 export default App;
-
