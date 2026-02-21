@@ -228,6 +228,21 @@ async function startServer() {
         }
     });
 
+    app.post('/api/roblox-usernames', async (req, res) => {
+        try {
+            const r = await fetch("https://users.roblox.com/v1/usernames/users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(req.body),
+            });
+
+            const data = await r.json();
+            return res.status(r.status).json(data);
+        } catch (e: any) {
+            return res.status(500).json({ error: e?.message ?? "Unknown error" });
+        }
+    });
+
     // Health check
     app.get('/api/health', (req, res) => {
         res.json({ status: 'ok', adminInitialized: !!admin.apps.length });
