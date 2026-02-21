@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { X, Save, Trash2, Plus, Database, AlertCircle, RefreshCw } from 'lucide-react';
-import { updatePlayerInDb, addPlayerToDb, deletePlayerFromDb, seedDatabase, INITIAL_DB_DATA, fetchAllMatches, updatePlayerPointsInDb } from '../firebase';
+import { updatePlayerInDb, addPlayerToDb, deletePlayerFromDb, seedDatabase, INITIAL_DB_DATA } from '../firebase';
 
 interface AdminModalProps {
     isOpen: boolean;

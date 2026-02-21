@@ -13,6 +13,7 @@ import Contact from './components/Contact';
 import GuideOverlay from './components/GuideOverlay';
 import RulesModal from './components/RulesModal';
 import ImageCropperModal from './components/ImageCropperModal';
+import AdminModal from './components/AdminModal';
 
 import { INITIAL_TEAM_SLOTS, GAMEWEEK_SCHEDULE } from './constants';
 import { ChevronLeft, ChevronRight, Edit2, AlertTriangle, Plus, CheckCircle, Save, Undo2, Users, LayoutDashboard, Lock as LockIcon, BookOpen, Crown, Zap, Shield, ArrowUpCircle } from 'lucide-react';
@@ -80,6 +81,7 @@ const App: React.FC = () => {
     const [isMarketOpen, setIsMarketOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isRulesOpen, setIsRulesOpen] = useState(false);
+    const [isAdminOpen, setIsAdminOpen] = useState(false);
     const [marketSlotIndex, setMarketSlotIndex] = useState<number | null>(null);
 
     // Image Cropper State
@@ -644,6 +646,7 @@ const App: React.FC = () => {
 
             <GuideOverlay active={showGuide} onComplete={finishGuide} teamName={teamName} logoUrl={logoUrl} onStepChange={handleGuideStepChange} />
             <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
+            <AdminModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} players={dbPlayers} />
             <ImageCropperModal isOpen={isCropperOpen} imageSrc={tempImageSrc} onCancel={() => setIsCropperOpen(false)} onCropComplete={handleCropComplete} />
 
             {/* Notification Bar - High Z-Index for Mobile */}
@@ -804,10 +807,12 @@ const App: React.FC = () => {
             </main>
 
             <MarketModal isOpen={isMarketOpen} onClose={() => setIsMarketOpen(false)} players={dbPlayers.length > 0 ? dbPlayers : INITIAL_DB_DATA} positionFilter={getMarketFilter(marketSlotIndex)} onSelect={handlePlayerSelect} currentBudget={remainingBudget} sellPrice={marketSlotIndex !== null ? (slots[marketSlotIndex].player?.price || 0) : 0} ownedPlayerIds={ownedPlayerIds} currencySymbol={currencySymbol} />
-            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} user={user} currentSettings={settings} />
+            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} user={user} currentSettings={settings} onOpenAdmin={() => { setIsSettingsOpen(false); setIsAdminOpen(true); }} />
 
         </div>
     );
 };
 
 export default App;
+
+
