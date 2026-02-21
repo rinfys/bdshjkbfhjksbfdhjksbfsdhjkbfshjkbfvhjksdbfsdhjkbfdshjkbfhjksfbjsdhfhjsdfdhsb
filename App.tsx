@@ -197,8 +197,8 @@ const App: React.FC = () => {
                 let points = 0;
 
                 // Calculate points from matches
-                Object.values(fetchedMatches).forEach(match => {
-                    if (!match || !match.players || !match.summary) return;
+                Object.values(fetchedMatches).forEach((match: any) => {
+                    if (!match || !match.players) return;
 
                     // Find player in match stats (by username match)
                     const matchPlayerKey = Object.keys(match.players).find(key =>
@@ -208,33 +208,32 @@ const App: React.FC = () => {
                     if (matchPlayerKey) {
                         const stats = match.players[matchPlayerKey];
                         const team = stats.team;
-                        const isWinner = match.summary.winner === team;
-                        const isLoser = match.summary.winner && match.summary.winner !== team && match.summary.winner !== 'Draw';
 
-                        // Rules:
-                        // Win: +4
-                        if (isWinner) points += 4;
-                        // Lose: -2
-                        if (isLoser) points -= 2;
-                        // Goal: +2
+                        // Individual Stats (Always available if player exists)
                         points += ((stats.goals || 0) * 2);
-                        // Assist: +1
                         points += ((stats.assists || 0) * 1);
-                        // MVP: +4
                         if (stats.mvp) points += 4;
-                        // GK Save: +1
                         if (p.position === 'GK') {
                             points += ((stats.saves || 0) * 1);
                         }
-                        // Defender Concede < 12: +6
-                        // Assuming "Concede" refers to team goals conceded
-                        if (p.position === 'CD' || p.position === 'GK') {
-                            const opponentScore = team === match.summary.score.team1Name
-                                ? match.summary.score.team2Score
-                                : match.summary.score.team1Score;
 
-                            if (opponentScore < 12) {
-                                points += 6;
+                        // Team Stats (Require Summary)
+                        if (match.summary) {
+                            const isWinner = match.summary.winner === team;
+                            const isLoser = match.summary.winner && match.summary.winner !== team && match.summary.winner !== 'Draw';
+
+                            if (isWinner) points += 4;
+                            if (isLoser) points -= 2;
+
+                            // Defender Concede < 12
+                            if (p.position === 'CD' || p.position === 'GK') {
+                                const opponentScore = team === match.summary.score?.team1Name
+                                    ? match.summary.score?.team2Score
+                                    : match.summary.score?.team1Score;
+
+                                if (opponentScore !== undefined && opponentScore < 12) {
+                                    points += 6;
+                                }
                             }
                         }
                     }
