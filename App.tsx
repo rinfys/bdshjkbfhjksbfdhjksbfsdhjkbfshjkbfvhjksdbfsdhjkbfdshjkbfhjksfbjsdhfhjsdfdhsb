@@ -196,8 +196,10 @@ const App: React.FC = () => {
             const updatedPlayers = fetchedPlayers.map(p => {
                 let points = 0;
 
-                // Calculate points from matches
-                Object.values(fetchedMatches).forEach((match: any) => {
+                Object.keys(fetchedMatches).forEach(matchKey => {
+                    if (!matchKey.startsWith('match')) return;
+
+                    const match = fetchedMatches[matchKey];
                     if (!match || !match.players) return;
 
                     // Find player in match stats (by username match)
@@ -209,7 +211,7 @@ const App: React.FC = () => {
                         const stats = match.players[matchPlayerKey];
                         const team = stats.team;
 
-                        // Individual Stats (Always available if player exists)
+                        // Individual Stats
                         points += ((stats.goals || 0) * 2);
                         points += ((stats.assists || 0) * 1);
                         if (stats.mvp) points += 4;
@@ -225,7 +227,7 @@ const App: React.FC = () => {
                             if (isWinner) points += 4;
                             if (isLoser) points -= 2;
 
-                            // Defender Concede < 12
+                            // Defender/GK Clean Sheet (< 12 goals conceded)
                             if (p.position === 'CD' || p.position === 'GK') {
                                 const opponentScore = team === match.summary.score?.team1Name
                                     ? match.summary.score?.team2Score
@@ -239,7 +241,7 @@ const App: React.FC = () => {
                     }
                 });
 
-                return { ...p, points: points > 0 ? points : 0 }; // Ensure no negative total? Or allow it? FPL allows negative.
+                return { ...p, points: points > 0 ? points : 0 };
             });
 
             setDbPlayers(updatedPlayers);
